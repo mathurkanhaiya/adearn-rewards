@@ -1,124 +1,82 @@
-import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Gauge, ListChecks, Trophy, Users, User, Shield } from "lucide-react";
+/** Minimal Telegram WebApp + Adsgram client helpers. */
 
-import { EarnTab } from "@/components/miniapp/EarnTab";
-import { TasksTab } from "@/components/miniapp/TasksTab";
-import { ReferTab } from "@/components/miniapp/ReferTab";
-import { LeaderboardTab } from "@/components/miniapp/LeaderboardTab";
-import { ProfileTab } from "@/components/miniapp/ProfileTab";
-import { useAppState, useRefreshState } from "@/lib/useAppState";
-import { showAd, AD_BLOCK_OPEN } from "@/lib/telegram-client";
-import { cn } from "@/lib/utils";
+export type TelegramWebApp = {
+  initData: string;
+  initDataUnsafe?: { start_param?: string; user?: { id: number; username?: string } };
+  ready: () => void;
+  expand: () => void;
+  openTelegramLink?: (url: string) => void;
+  openLink?: (url: string) => void;
+  HapticFeedback?: { impactOccurred: (s: string) => void };
+  setHeaderColor?: (c: string) => void;
+};
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Ads Rewards — Play, Watch Ads & Earn on Telegram" },
-      {
-        name: "description",
-        content:
-          "Watch ads, finish Telegram tasks and invite friends to earn real rewards. Withdraw in UPI or USDT on Polygon from the Ads Rewards mini app.",
-      },
-      { property: "og:title", content: "Ads Rewards — Watch Ads & Earn" },
-      {
-        property: "og:description",
-        content:
-          "Earn up to $0.01 per ad, up to $0.025 per referral plus 35% lifetime commission. Withdraw in UPI or USDT.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: MiniApp,
-});
+type AdController = { show: () => Promise<unknown> };
 
-const TABS = [
-  { id: "earn", label: "Earn", icon: Gauge },
-  { id: "tasks", label: "Tasks", icon: ListChecks },
-  { id: "refer", label: "Refer", icon: Users },
-  { id: "top", label: "Top", icon: Trophy },
-  { id: "profile", label: "Profile", icon: User },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
-
-function MiniApp() {
-  const [tab, setTab] = useState<TabId>("earn");
-  const state = useAppState();
-  const refresh = useRefreshState();
-
-  useEffect(() => {
-    void showAd(AD_BLOCK_OPEN).catch(() => undefined);
-  }, []);
-
-  if (state.isLoading || !state.data) {
-    return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <div className="glass rounded-3xl px-8 py-10 text-center">
-          <h1 className="text-xl font-bold text-gradient">Ads Rewards</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {state.isError
-              ? (state.error as Error)?.message || "Open this app inside Telegram."
-              : "Loading your account…"}
-          </p>
-        </div>
-      </main>
-    );
+declare global {
+  interface Window {
+    Telegram?: { WebApp?: TelegramWebApp };
+    Adsgram?: { init: (opts: { blockId: string }) => AdController };
   }
-
-  const { player, settings, admin, pendingWithdrawal } = state.data;
-
-  return (
-    <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-28 pt-6">
-      <header className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight">
-            Ads <span className="text-gradient">Rewards</span>
-          </h1>
-          <p className="text-[11px] text-muted-foreground">Play & earn on Telegram</p>
-        </div>
-        {admin ? (
-          <Link
-            to="/admin"
-            className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-          >
-            <Shield className="h-3.5 w-3.5 text-primary" /> Admin
-          </Link>
-        ) : null}
-      </header>
-
-      {tab === "earn" && <EarnTab player={player} settings={settings} onDone={refresh} />}
-      {tab === "tasks" && <TasksTab onDone={refresh} />}
-      {tab === "refer" && <ReferTab player={player} />}
-      {tab === "top" && <LeaderboardTab />}
-      {tab === "profile" && (
-        <ProfileTab
-          player={player}
-          settings={settings}
-          pending={pendingWithdrawal}
-          onDone={refresh}
-        />
-      )}
-
-      <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-4">
-        <div className="glass grid grid-cols-5 gap-1 rounded-3xl p-1.5">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-medium transition-colors",
-                tab === id ? "gradient-primary text-primary-foreground" : "text-muted-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </nav>
-    </main>
-  );
 }
 
+export const AD_BLOCK_OPEN = "int-23322";
+export const AD_BLOCK_REWARD = "23390";
+export const BOT_USERNAME = "Adsrewartsbot";
+
+export function tg(): TelegramWebApp | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.Telegram?.WebApp;
+}
+
+export function getInitData(): string {
+  return tg()?.initData ?? "";
+}
+
+export function getStartParam(): string | undefined {
+  const fromTg = tg()?.initDataUnsafe?.start_param;
+  if (fromTg) return fromTg;
+  if (typeof window === "undefined") return undefined;
+  return new URLSearchParams(window.location.search).get("startapp") ?? undefined;
+}
+
+export function referralLink(tgId: number | string): string {
+  return `https://t.me/${BOT_USERNAME}/app?startapp=${tgId}`;
+}
+
+export function openLink(url: string) {
+  const app = tg();
+  if (url.includes("t.me") && app?.openTelegramLink) app.openTelegramLink(url);
+  else if (app?.openLink) app.openLink(url);
+  else window.open(url, "_blank", "noopener");
+}
+
+let scriptPromise: Promise<void> | null = null;
+function loadAdsgram(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.Adsgram) return Promise.resolve();
+  if (!scriptPromise) {
+    scriptPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://sad.adsgram.ai/js/sad.min.js";
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Ad service unavailable"));
+      document.head.appendChild(s);
+    });
+  }
+  return scriptPromise;
+}
+
+const controllers = new Map<string, AdController>();
+
+export async function showAd(blockId: string): Promise<void> {
+  await loadAdsgram();
+  if (!window.Adsgram) throw new Error("Ad service unavailable");
+  let controller = controllers.get(blockId);
+  if (!controller) {
+    controller = window.Adsgram.init({ blockId });
+    controllers.set(blockId, controller);
+  }
+  await controller.show();
+}
