@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as api from "./app.server";
 
 export const fnLoadState = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; startParam?: string }) => d)
+  .inputValidator((d: { initData: string; startParam?: string | undefined }) => d)
   .handler(async ({ data }) => api.loadState(data.initData, data.startParam));
 
 export const fnWatchAd = createServerFn({ method: "POST" })
@@ -75,10 +75,10 @@ export const fnAdminCreateTask = createServerFn({ method: "POST" })
     (d: {
       initData: string;
       title: string;
-      description?: string;
+      description?: string | undefined;
       task_type: string;
       link: string;
-      chat_username?: string;
+      chat_username?: string | undefined;
       reward: number;
       user_limit: number;
       is_live: boolean;
@@ -87,5 +87,5 @@ export const fnAdminCreateTask = createServerFn({ method: "POST" })
   .handler(async ({ data }) => api.adminCreateTask(data.initData, data));
 
 export const fnAdminUpdateTask = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; id: string; is_live?: boolean; remove?: boolean }) => d)
+  .inputValidator((d: { initData: string; id: string; is_live?: boolean | undefined; remove?: boolean | undefined }) => d)
   .handler(async ({ data }) => api.adminUpdateTask(data.initData, data));

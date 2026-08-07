@@ -161,7 +161,7 @@ export async function getSettings(): Promise<Settings> {
 }
 
 /** Resolve (and lazily create) the player for a verified Telegram session. */
-export async function resolvePlayer(initData: string, startParam?: string) {
+export async function resolvePlayer(initData: string, startParam?: string | undefined) {
   const session = verifyInitData(initData);
   const tgId = session.user.id;
   const ref = startParam ?? session.startParam;
@@ -291,7 +291,7 @@ async function maybeVerifyReferral(player: Player, settings: Settings) {
   await credit(referrerId, bonus, "referral", "Verified referral bonus");
 }
 
-export async function loadState(initData: string, startParam?: string) {
+export async function loadState(initData: string, startParam?: string | undefined) {
   const { player, admin } = await resolvePlayer(initData, startParam);
   const settings = await getSettings();
   const pending = await supabaseAdmin
@@ -624,10 +624,10 @@ export async function adminCreateTask(
   initData: string,
   input: {
     title: string;
-    description?: string;
+    description?: string | undefined;
     task_type: string;
     link: string;
-    chat_username?: string;
+    chat_username?: string | undefined;
     reward: number;
     user_limit: number;
     is_live: boolean;
@@ -650,7 +650,7 @@ export async function adminCreateTask(
 
 export async function adminUpdateTask(
   initData: string,
-  input: { id: string; is_live?: boolean; remove?: boolean },
+  input: { id: string; is_live?: boolean | undefined; remove?: boolean | undefined },
 ) {
   await requireAdmin(initData);
   if (input.remove) {
