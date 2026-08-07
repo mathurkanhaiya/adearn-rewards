@@ -217,7 +217,9 @@ export async function loadState(initData: string, startParam?: string) {
     player,
     settings,
     admin,
-    pendingWithdrawal: (pending.data as unknown as Record<string, unknown> | null) ?? null,
+    pendingWithdrawal: pending.data
+      ? mapWithdrawal(pending.data as unknown as Record<string, unknown>)
+      : null,
   };
 }
 
@@ -358,7 +360,7 @@ export async function leaderboard(initData: string, period: "weekly" | "monthly"
   });
 }
 
-export async function withdrawalHistory(initData: string) {
+export async function withdrawalHistory(initData: string): Promise<WithdrawalRow[]> {
   const { player } = await resolvePlayer(initData);
   const { data } = await supabaseAdmin
     .from("withdrawals")
@@ -366,7 +368,7 @@ export async function withdrawalHistory(initData: string) {
     .eq("player_id", player.id)
     .order("created_at", { ascending: false })
     .limit(20);
-  return (data ?? []).map((w) => w as unknown as Record<string, unknown>);
+  return (data ?? []).map((w) => mapWithdrawal(w as unknown as Record<string, unknown>));
 }
 
 export async function requestWithdrawal(
@@ -423,7 +425,7 @@ export async function requestWithdrawal(
   return { ok: true, net };
 }
 
-export async function transactions(initData: string) {
+export async function transactions(initData: string): Promise<TxRow[]> {
   const { player } = await resolvePlayer(initData);
   const { data } = await supabaseAdmin
     .from("transactions")
@@ -431,7 +433,7 @@ export async function transactions(initData: string) {
     .eq("player_id", player.id)
     .order("created_at", { ascending: false })
     .limit(50);
-  return (data ?? []).map((t) => t as unknown as Record<string, unknown>);
+  return (data ?? []).map((t) => mapTx(t as unknown as Record<string, unknown>));
 }
 
 /* ------------------------------- admin ------------------------------- */
@@ -467,7 +469,7 @@ export async function adminUsers(initData: string, search: string) {
   return (data ?? []).map((p) => mapPlayer(p as unknown as Record<string, unknown>));
 }
 
-export async function adminUserTransactions(initData: string, playerId: string) {
+export async function adminUserTransactions(initData: string, playerId: string): Promise<TxRow[]> {
   await requireAdmin(initData);
   const { data } = await supabaseAdmin
     .from("transactions")
@@ -475,10 +477,10 @@ export async function adminUserTransactions(initData: string, playerId: string) 
     .eq("player_id", playerId)
     .order("created_at", { ascending: false })
     .limit(50);
-  return (data ?? []).map((t) => t as unknown as Record<string, unknown>);
+  return (data ?? []).map((t) => mapTx(t as unknown as Record<string, unknown>));
 }
 
-export async function adminWithdrawals(initData: string, status: string) {
+export async function adminWithdrawals(initData: string, status: string): Promise<WithdrawalRow[]> {
   await requireAdmin(initData);
   const { data } = await supabaseAdmin
     .from("withdrawals")
@@ -486,7 +488,7 @@ export async function adminWithdrawals(initData: string, status: string) {
     .eq("status", status)
     .order("created_at", { ascending: false })
     .limit(100);
-  return (data ?? []).map((w) => w as unknown as Record<string, unknown>);
+  return (data ?? []).map((w) => mapWithdrawal(w as unknown as Record<string, unknown>));
 }
 
 export async function adminResolveWithdrawal(
@@ -525,10 +527,10 @@ export async function adminResolveWithdrawal(
   return { ok: true };
 }
 
-export async function adminTasks(initData: string) {
+export async function adminTasks(initData: string): Promise<AdminTaskRow[]> {
   await requireAdmin(initData);
   const { data } = await supabaseAdmin.from("tasks").select("*").order("created_at", { ascending: false });
-  return (data ?? []).map((t) => t as unknown as Record<string, unknown>);
+  return (data ?? []).map((t) => mapAdminTask(t as unknown as Record<string, unknown>));
 }
 
 export async function adminCreateTask(
