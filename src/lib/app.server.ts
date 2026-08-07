@@ -580,7 +580,7 @@ export async function adminWithdrawals(initData: string, status: string): Promis
 
 export async function adminResolveWithdrawal(
   initData: string,
-  input: { id: string; action: "paid" | "rejected"; reason?: string },
+  input: { id: string; action: "paid" | "rejected"; reason?: string | undefined },
 ) {
   await requireAdmin(initData);
   const { data, error } = await supabaseAdmin.from("withdrawals").select("*").eq("id", input.id).single();
