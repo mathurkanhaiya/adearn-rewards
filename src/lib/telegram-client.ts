@@ -20,8 +20,8 @@ declare global {
   }
 }
 
-export const AD_BLOCK_OPEN = "int-25929";
-export const AD_BLOCK_REWARD = "25930";
+export const AD_BLOCK_OPEN = "int-23322";
+export const AD_BLOCK_REWARD = "23390";
 export const BOT_USERNAME = "Adsrewartsbot";
 
 export function tg(): TelegramWebApp | undefined {
