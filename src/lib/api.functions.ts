@@ -57,7 +57,7 @@ export const fnAdminWithdrawals = createServerFn({ method: "POST" })
   .handler(async ({ data }) => api.adminWithdrawals(data.initData, data.status));
 
 export const fnAdminResolveWithdrawal = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; id: string; action: "paid" | "rejected"; reason?: string }) => d)
+  .inputValidator((d: { initData: string; id: string; action: "paid" | "rejected"; reason?: string | undefined }) => d)
   .handler(async ({ data }) =>
     api.adminResolveWithdrawal(data.initData, {
       id: data.id,

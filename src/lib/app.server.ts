@@ -33,8 +33,95 @@ export type Player = {
   created_at: string;
 };
 
+export type WithdrawalRow = {
+  id: string;
+  player_id: string;
+  amount: number;
+  fee: number;
+  net_amount: number;
+  method: string;
+  address: string;
+  status: string;
+  reason: string | null;
+  created_at: string;
+  processed_at: string | null;
+  user_tg_id: number | null;
+  user_name: string | null;
+};
+
+export type TxRow = {
+  id: string;
+  kind: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+};
+
+export type AdminTaskRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  task_type: string;
+  link: string;
+  chat_username: string | null;
+  reward: number;
+  user_limit: number;
+  completed_count: number;
+  is_live: boolean;
+  created_at: string;
+};
+
 function num(v: unknown): number {
   return Number(v ?? 0);
+}
+
+function str(v: unknown): string | null {
+  return v === null || v === undefined ? null : String(v);
+}
+
+function mapWithdrawal(row: Record<string, unknown>): WithdrawalRow {
+  const p = (row["players"] ?? null) as Record<string, unknown> | null;
+  return {
+    id: String(row["id"]),
+    player_id: String(row["player_id"]),
+    amount: num(row["amount"]),
+    fee: num(row["fee"]),
+    net_amount: num(row["net_amount"]),
+    method: String(row["method"]),
+    address: String(row["address"]),
+    status: String(row["status"]),
+    reason: str(row["reason"]),
+    created_at: String(row["created_at"]),
+    processed_at: str(row["processed_at"]),
+    user_tg_id: p ? num(p["tg_id"]) : null,
+    user_name: p ? ((p["username"] as string) ?? (p["first_name"] as string) ?? null) : null,
+  };
+}
+
+function mapTx(row: Record<string, unknown>): TxRow {
+  return {
+    id: String(row["id"]),
+    kind: String(row["kind"]),
+    amount: num(row["amount"]),
+    note: str(row["note"]),
+    created_at: String(row["created_at"]),
+  };
+}
+
+function mapAdminTask(row: Record<string, unknown>): AdminTaskRow {
+  return {
+    id: String(row["id"]),
+    title: String(row["title"]),
+    description: str(row["description"]),
+    task_type: String(row["task_type"]),
+    link: String(row["link"]),
+    chat_username: str(row["chat_username"]),
+    reward: num(row["reward"]),
+    user_limit: num(row["user_limit"]),
+    completed_count: num(row["completed_count"]),
+    is_live: Boolean(row["is_live"]),
+    created_at: String(row["created_at"]),
+  };
 }
 
 function mapPlayer(row: Record<string, unknown>): Player {
