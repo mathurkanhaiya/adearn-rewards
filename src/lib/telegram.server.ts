@@ -11,7 +11,7 @@ export type TgUser = {
 
 export type TgSession = {
   user: TgUser;
-  startParam?: string;
+  startParam?: string | undefined;
 };
 
 function botToken(): string {
