@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Gauge, ListChecks, Trophy, Users, User, Shield, RefreshCw } from "lucide-react";
+import { Gauge, ListChecks, Trophy, Users, User, Shield } from "lucide-react";
 
 import { EarnTab } from "@/components/miniapp/EarnTab";
 import { TasksTab } from "@/components/miniapp/TasksTab";
@@ -49,37 +49,19 @@ function MiniApp() {
   const refresh = useRefreshState();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initData) {
-      void showAd(AD_BLOCK_OPEN).catch(() => undefined);
-    }
+    void showAd(AD_BLOCK_OPEN).catch(() => undefined);
   }, []);
 
   if (state.isLoading || !state.data) {
-    const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
-    const telegramAvailable = typeof window !== "undefined" && Boolean((window as any).Telegram?.WebApp?.initData);
-
-    let errorMessage = "Open this app inside Telegram.";
-    if (state.isError && state.error) {
-      errorMessage = (state.error as Error)?.message || "Failed to load account data.";
-    } else if (isLocalhost && !telegramAvailable) {
-      errorMessage = "Local development mode: Telegram WebApp initData is missing. Open via your Telegram bot link.";
-    }
-
     return (
       <main className="flex min-h-screen items-center justify-center px-6">
-        <div className="glass rounded-3xl px-8 py-10 text-center max-w-sm w-full">
+        <div className="glass rounded-3xl px-8 py-10 text-center">
           <h1 className="text-xl font-bold text-gradient">Ads Rewards</h1>
-          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-            {state.isLoading ? "Loading your account…" : errorMessage}
+          <p className="mt-2 text-sm text-muted-foreground">
+            {state.isError
+              ? (state.error as Error)?.message || "Open this app inside Telegram."
+              : "Loading your account…"}
           </p>
-          {!state.isLoading && (
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:opacity-90"
-            >
-              <RefreshCw className="h-3.5 w-3.5" /> Retry / Reload
-            </button>
-          )}
         </div>
       </main>
     );
