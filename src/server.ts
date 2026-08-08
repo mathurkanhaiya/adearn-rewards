@@ -44,12 +44,24 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+/** Cloudflare injects secrets on the per-request `env` object, not always on process.env. */
+function hydrateProcessEnv(env: unknown) {
+  if (!env || typeof env !== "object") return;
+  const target = (globalThis as { process?: { env?: Record<string, unknown> } }).process?.env;
+  if (!target) return;
+  for (const [key, value] of Object.entries(env as Record<string, unknown>)) {
+    if (typeof value === "string" && !target[key]) target[key] = value;
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      hydrateProcessEnv(env);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
+
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
