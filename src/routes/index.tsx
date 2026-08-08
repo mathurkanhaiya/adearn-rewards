@@ -7,7 +7,9 @@ import { TasksTab } from "@/components/miniapp/TasksTab";
 import { ReferTab } from "@/components/miniapp/ReferTab";
 import { LeaderboardTab } from "@/components/miniapp/LeaderboardTab";
 import { ProfileTab } from "@/components/miniapp/ProfileTab";
-import { useAppState, useRefreshState } from "@/lib/useAppState";
+import { LoadingScreen, OpenInTelegram } from "@/components/miniapp/Splash";
+import { useAppState, useRefreshState, useTelegramEnv } from "@/lib/useAppState";
+
 import { showAd, AD_BLOCK_OPEN } from "@/lib/telegram-client";
 import { cn } from "@/lib/utils";
 
