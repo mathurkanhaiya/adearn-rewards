@@ -29,12 +29,39 @@ export function tg(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
 }
 
+/** Telegram also passes the launch params in the URL hash (or query) on some clients. */
+function initDataFromUrl(): string {
+  if (typeof window === "undefined") return "";
+  const sources = [window.location.hash.replace(/^#/, ""), window.location.search.replace(/^\?/, "")];
+  for (const src of sources) {
+    if (!src) continue;
+    const value = new URLSearchParams(src).get("tgWebAppData");
+    if (value) return value;
+  }
+  try {
+    const stored = sessionStorage.getItem("tg_init_data");
+    if (stored) return stored;
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
 export function getInitData(): string {
-  return tg()?.initData ?? "";
+  const fromSdk = tg()?.initData ?? "";
+  const raw = fromSdk || initDataFromUrl();
+  if (raw && typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem("tg_init_data", raw);
+    } catch {
+      /* ignore */
+    }
+  }
+  return raw;
 }
 
 /** Wait for the Telegram WebApp SDK script to attach initData (it can lag first paint). */
-export async function waitForTelegram(timeoutMs = 3000): Promise<boolean> {
+export async function waitForTelegram(timeoutMs = 5000): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -43,6 +70,7 @@ export async function waitForTelegram(timeoutMs = 3000): Promise<boolean> {
   }
   return Boolean(getInitData());
 }
+
 
 export function getStartParam(): string | undefined {
   const fromTg = tg()?.initDataUnsafe?.start_param;

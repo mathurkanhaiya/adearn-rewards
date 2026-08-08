@@ -15,10 +15,12 @@ export type TgSession = {
 };
 
 function botToken(): string {
-  const token = process.env["TELEGRAM_BOT_TOKEN"];
-  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const env = process.env as Record<string, string | undefined>;
+  const token = env["TELEGRAM_BOT_TOKEN"] || env["BOT_TOKEN"];
+  if (!token) throw new Error("Bot token missing on the server. Publish the app and try again.");
   return token;
 }
+
 
 /** Verify Telegram WebApp initData signature and return the embedded user. */
 export function verifyInitData(initData: string): TgSession {
