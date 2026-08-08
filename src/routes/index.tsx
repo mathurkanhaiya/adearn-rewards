@@ -22,11 +22,11 @@ export const Route = createFileRoute("/")({
         content:
           "Watch ads, finish Telegram tasks and invite friends to earn real rewards. Withdraw in UPI or USDT on Polygon from the Ads Rewards mini app.",
       },
-      { property: "og:title", content: "Ads Rewards — Watch Ads & Earn" },
+      { property: "og:title", content: "Ads Rewards — Play, Watch Ads & Earn on Telegram" },
       {
         property: "og:description",
         content:
-          "Earn up to $0.01 per ad, up to $0.025 per referral plus 35% lifetime commission. Withdraw in UPI or USDT.",
+          "Watch ads, finish Telegram tasks and invite friends to earn real rewards. Withdraw in UPI or USDT on Polygon from the Ads Rewards mini app.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
