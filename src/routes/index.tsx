@@ -45,27 +45,25 @@ type TabId = (typeof TABS)[number]["id"];
 
 function MiniApp() {
   const [tab, setTab] = useState<TabId>("earn");
-  const state = useAppState();
+  const env = useTelegramEnv();
+  const state = useAppState(env === "telegram");
   const refresh = useRefreshState();
 
   useEffect(() => {
+    if (env !== "telegram") return;
     void showAd(AD_BLOCK_OPEN).catch(() => undefined);
-  }, []);
+  }, [env]);
 
-  if (state.isLoading || !state.data) {
+  if (env === "checking") return <LoadingScreen message="Connecting to Telegram…" />;
+  if (env === "browser") return <OpenInTelegram />;
+  if (state.isError)
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <div className="glass rounded-3xl px-8 py-10 text-center">
-          <h1 className="text-xl font-bold text-gradient">Ads Rewards</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {state.isError
-              ? (state.error as Error)?.message || "Open this app inside Telegram."
-              : "Loading your account…"}
-          </p>
-        </div>
-      </main>
+      <OpenInTelegram
+        note={(state.error as Error)?.message || "We couldn't verify your Telegram session."}
+      />
     );
-  }
+  if (state.isLoading || !state.data) return <LoadingScreen />;
+
 
   const { player, settings, admin, pendingWithdrawal } = state.data;
 
