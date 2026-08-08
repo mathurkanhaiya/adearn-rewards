@@ -20,7 +20,8 @@ import {
   fnAdminUserTransactions,
 } from "@/lib/api.functions";
 import { getInitData } from "@/lib/telegram-client";
-import { useAppState } from "@/lib/useAppState";
+import { LoadingScreen, OpenInTelegram } from "@/components/miniapp/Splash";
+import { useAppState, useTelegramEnv } from "@/lib/useAppState";
 import { usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -50,11 +51,16 @@ type Section = (typeof SECTIONS)[number];
 
 function AdminPage() {
   const [section, setSection] = useState<Section>("Overview");
-  const state = useAppState();
+  const env = useTelegramEnv();
+  const state = useAppState(env === "telegram");
 
-  if (state.isLoading) {
-    return <Centered>Loading…</Centered>;
+  if (env === "checking" || state.isLoading || (env === "telegram" && !state.data)) {
+    return <LoadingScreen message="Loading admin panel…" />;
   }
+  if (env === "browser") {
+    return <OpenInTelegram />;
+  }
+
   if (!state.data?.admin) {
     return <Centered>Admin access only.</Centered>;
   }
