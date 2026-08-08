@@ -20,7 +20,8 @@ import {
   fnAdminUserTransactions,
 } from "@/lib/api.functions";
 import { getInitData } from "@/lib/telegram-client";
-import { useAppState } from "@/lib/useAppState";
+import { LoadingScreen, OpenInTelegram } from "@/components/miniapp/Splash";
+import { useAppState, useTelegramEnv } from "@/lib/useAppState";
 import { usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
