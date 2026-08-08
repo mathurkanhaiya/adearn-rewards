@@ -33,12 +33,24 @@ export function getInitData(): string {
   return tg()?.initData ?? "";
 }
 
+/** Wait for the Telegram WebApp SDK script to attach initData (it can lag first paint). */
+export async function waitForTelegram(timeoutMs = 3000): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (getInitData()) return true;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return Boolean(getInitData());
+}
+
 export function getStartParam(): string | undefined {
   const fromTg = tg()?.initDataUnsafe?.start_param;
   if (fromTg) return fromTg;
   if (typeof window === "undefined") return undefined;
   return new URLSearchParams(window.location.search).get("startapp") ?? undefined;
 }
+
 
 export function referralLink(tgId: number | string): string {
   return `https://t.me/${BOT_USERNAME}/app?startapp=${tgId}`;
