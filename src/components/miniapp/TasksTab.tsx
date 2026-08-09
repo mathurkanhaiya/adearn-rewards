@@ -83,7 +83,7 @@ export function TasksTab({ onDone }: { onDone: () => void }) {
                   disabled={pending === t.id}
                   onClick={() => verify(t.id)}
                 >
-                  {pending === t.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
+                  {pending === t.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Claim"}
                 </Button>
               </div>
             )}
