@@ -365,7 +365,7 @@ export async function listTasks(initData: string) {
 }
 
 export async function completeTask(initData: string, taskId: string) {
-  const { player, tgId } = await resolvePlayer(initData);
+  const { player } = await resolvePlayer(initData);
   const settings = await getSettings();
   const { data, error } = await supabaseAdmin.from("tasks").select("*").eq("id", taskId).single();
   if (error) throw new Error("Task not found.");
