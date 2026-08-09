@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { db as supabaseAdmin } from "./db.server";
 import { verifyInitData, isAdmin, ADMIN_TG_ID } from "./telegram.server";
 
 const today = () => new Date().toISOString().slice(0, 10);
