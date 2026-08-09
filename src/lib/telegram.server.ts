@@ -1,6 +1,12 @@
-import { createHmac } from "node:crypto";
-
 export const ADMIN_TG_ID = 2139807311;
+
+/**
+ * Telegram's public Ed25519 key for third-party validation of WebApp initData.
+ * This lets us verify a launch WITHOUT ever storing the bot token on the server.
+ * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ */
+const TELEGRAM_PUBLIC_KEY_PROD = "e7bf03a2fa4602af4580703d88dda5bb59f32ed8b02a56c187fe7d34caed242d";
+const TELEGRAM_PUBLIC_KEY_TEST = "40055058a4ee38156a06562e52eec92a771bcd8346a8c4615cb7376eddf72ec9";
 
 export type TgUser = {
   id: number;
@@ -14,27 +20,64 @@ export type TgSession = {
   startParam?: string | undefined;
 };
 
-function botToken(): string {
+/** Numeric bot id (public, NOT the secret token). Set TELEGRAM_BOT_ID in the host env. */
+function botId(): string {
   const env = process.env as Record<string, string | undefined>;
-  const token = env["TELEGRAM_BOT_TOKEN"] || env["BOT_TOKEN"];
-  if (!token) throw new Error("Bot token missing on the server. Publish the app and try again.");
-  return token;
+  const id = env["TELEGRAM_BOT_ID"] || env["VITE_TELEGRAM_BOT_ID"];
+  if (!id) {
+    throw new Error(
+      "Server is missing TELEGRAM_BOT_ID. Add your bot's numeric id (the digits before ':' in the bot token) as an environment variable.",
+    );
+  }
+  return id.trim();
 }
 
+function hexToBytes(hex: string): Uint8Array {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
 
-/** Verify Telegram WebApp initData signature and return the embedded user. */
-export function verifyInitData(initData: string): TgSession {
+function base64UrlToBytes(value: string): Uint8Array {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+async function ed25519Verify(publicKeyHex: string, message: string, signature: Uint8Array) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    hexToBytes(publicKeyHex) as unknown as ArrayBuffer,
+    { name: "Ed25519" },
+    false,
+    ["verify"],
+  );
+  return crypto.subtle.verify(
+    "Ed25519",
+    key,
+    signature as unknown as ArrayBuffer,
+    new TextEncoder().encode(message) as unknown as ArrayBuffer,
+  );
+}
+
+/**
+ * Verify Telegram WebApp initData using Telegram's public key (no bot token needed)
+ * and return the embedded user.
+ */
+export async function verifyInitData(initData: string): Promise<TgSession> {
   if (!initData) {
     if (process.env["NODE_ENV"] !== "production") {
-      return {
-        user: { id: ADMIN_TG_ID, username: "dev_preview", first_name: "Preview" },
-      };
+      return { user: { id: ADMIN_TG_ID, username: "dev_preview", first_name: "Preview" } };
     }
     throw new Error("Open this app inside Telegram.");
   }
 
   const params = new URLSearchParams(initData);
-  const hash = params.get("hash") ?? "";
+  const signature = params.get("signature");
+  if (!signature) throw new Error("Outdated Telegram client. Please update Telegram and reopen.");
+
   params.delete("hash");
   params.delete("signature");
 
@@ -43,10 +86,13 @@ export function verifyInitData(initData: string): TgSession {
     .sort()
     .join("\n");
 
-  const secret = createHmac("sha256", "WebAppData").update(botToken()).digest();
-  const computed = createHmac("sha256", secret).update(dataCheckString).digest("hex");
+  const message = `${botId()}:WebAppData\n${dataCheckString}`;
+  const sig = base64UrlToBytes(signature);
 
-  if (computed !== hash) throw new Error("Invalid Telegram session.");
+  const ok =
+    (await ed25519Verify(TELEGRAM_PUBLIC_KEY_PROD, message, sig)) ||
+    (await ed25519Verify(TELEGRAM_PUBLIC_KEY_TEST, message, sig));
+  if (!ok) throw new Error("Invalid Telegram session.");
 
   const authDate = Number(params.get("auth_date") ?? 0);
   if (!authDate || Date.now() / 1000 - authDate > 60 * 60 * 24) {
@@ -63,24 +109,4 @@ export function verifyInitData(initData: string): TgSession {
 
 export function isAdmin(tgId: number): boolean {
   return Number(tgId) === ADMIN_TG_ID;
-}
-
-/** Check whether a Telegram user is a member of a public channel/group. */
-export async function isChatMember(chatUsername: string, tgId: number): Promise<boolean> {
-  const chatId = chatUsername.startsWith("@") ? chatUsername : `@${chatUsername}`;
-  const res = await fetch(`https://api.telegram.org/bot${botToken()}/getChatMember`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, user_id: tgId }),
-  });
-  const body = (await res.json()) as {
-    ok: boolean;
-    result?: { status?: string };
-    description?: string;
-  };
-  if (!body.ok) {
-    throw new Error(body.description ?? "Could not verify membership. Make sure the bot is admin.");
-  }
-  const status = body.result?.status ?? "left";
-  return ["member", "administrator", "creator", "restricted"].includes(status);
 }
