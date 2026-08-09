@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { verifyInitData, isAdmin, isChatMember, ADMIN_TG_ID } from "./telegram.server";
+import { verifyInitData, isAdmin, ADMIN_TG_ID } from "./telegram.server";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const rnd = (min: number, max: number) => Math.round((min + Math.random() * (max - min)) * 100000) / 100000;
@@ -162,7 +162,7 @@ export async function getSettings(): Promise<Settings> {
 
 /** Resolve (and lazily create) the player for a verified Telegram session. */
 export async function resolvePlayer(initData: string, startParam?: string | undefined) {
-  const session = verifyInitData(initData);
+  const session = await verifyInitData(initData);
   const tgId = session.user.id;
   const ref = startParam ?? session.startParam;
 
@@ -382,14 +382,6 @@ export async function completeTask(initData: string, taskId: string) {
     .eq("player_id", player.id)
     .maybeSingle();
   if (already.data) throw new Error("You already completed this task.");
-
-  const type = String(task["task_type"]);
-  if (type === "channel" || type === "group") {
-    const chat = (task["chat_username"] as string) || String(task["link"]).split("/").pop() || "";
-    if (!chat) throw new Error("Task is missing a chat username for verification.");
-    const member = await isChatMember(chat, tgId);
-    if (!member) throw new Error("Join first, then tap Verify again.");
-  }
 
   const reward = num(task["reward"]);
   const ins = await supabaseAdmin
