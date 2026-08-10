@@ -1,5 +1,5 @@
 import { db as supabaseAdmin } from "./db.server";
-import { verifyInitData, isAdmin, ADMIN_TG_ID } from "./telegram.server";
+import { verifyInitData, isAdmin, ADMIN_TG_ID, sendTelegramMessage } from "./telegram.server";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const rnd = (min: number, max: number) => Math.round((min + Math.random() * (max - min)) * 100000) / 100000;
