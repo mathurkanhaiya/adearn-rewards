@@ -455,6 +455,7 @@ export async function withdrawalHistory(initData: string): Promise<WithdrawalRow
 
 export async function requestWithdrawal(
   initData: string,
+  adminToken: string,
   input: { amount: number; method: string; address: string },
 ) {
   const { player } = await resolvePlayer(initData);
@@ -575,6 +576,7 @@ export async function adminWithdrawals(initData: string, adminToken: string, sta
 
 export async function adminResolveWithdrawal(
   initData: string,
+  adminToken: string,
   input: { id: string; action: "paid" | "rejected"; reason?: string | undefined },
 ) {
   await requireAdmin(initData, adminToken);
@@ -617,6 +619,7 @@ export async function adminTasks(initData: string, adminToken: string): Promise<
 
 export async function adminCreateTask(
   initData: string,
+  adminToken: string,
   input: {
     title: string;
     description?: string | undefined;
@@ -645,6 +648,7 @@ export async function adminCreateTask(
 
 export async function adminUpdateTask(
   initData: string,
+  adminToken: string,
   input: { id: string; is_live?: boolean | undefined; remove?: boolean | undefined },
 ) {
   await requireAdmin(initData, adminToken);
