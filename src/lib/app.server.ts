@@ -1,5 +1,5 @@
 import { db as supabaseAdmin } from "./db.server";
-import { verifyInitData, isAdmin, ADMIN_TG_ID } from "./telegram.server";
+import { verifyInitData, isAdmin, ADMIN_TG_ID, sendTelegramMessage } from "./telegram.server";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const rnd = (min: number, max: number) => Math.round((min + Math.random() * (max - min)) * 100000) / 100000;
@@ -424,16 +424,19 @@ export async function leaderboard(initData: string, period: "weekly" | "monthly"
   if (top.length === 0) return [];
   const { data: players } = await supabaseAdmin
     .from("players")
-    .select("id,username,first_name")
+    .select("id,tg_id,username,first_name")
     .in("id", top.map(([id]) => id));
   const byId = new Map(
     (players ?? []).map((p) => [String((p as Record<string, unknown>)["id"]), p as Record<string, unknown>]),
   );
   return top.map(([id, count], i) => {
     const p = byId.get(id);
+    const isAdminRow = num(p?.["tg_id"]) === ADMIN_TG_ID;
     return {
       rank: i + 1,
-      name: (p?.["username"] as string) ?? (p?.["first_name"] as string) ?? "Player",
+      name: isAdminRow
+        ? "Guest"
+        : ((p?.["username"] as string) ?? (p?.["first_name"] as string) ?? "Player"),
       referrals: count,
     };
   });
@@ -517,13 +520,100 @@ export async function transactions(initData: string): Promise<TxRow[]> {
 
 /* ------------------------------- admin ------------------------------- */
 
-async function requireAdmin(initData: string) {
+const OTP_TTL_MS = 5 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 60 * 1000;
+
+async function requireAdminTg(initData: string) {
   const { admin, tgId } = await resolvePlayer(initData);
   if (!admin || tgId !== ADMIN_TG_ID) throw new Error("Admin access only.");
+  return tgId;
 }
 
-export async function adminOverview(initData: string) {
-  await requireAdmin(initData);
+/** Step 1: DM a fresh 6-digit code to the admin's Telegram account. */
+export async function adminRequestOtp(initData: string) {
+  const tgId = await requireAdminTg(initData);
+
+  const recent = await supabaseAdmin
+    .from("admin_otps")
+    .select("created_at")
+    .eq("tg_id", tgId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const lastAt = (recent.data?.[0] as Record<string, unknown> | undefined)?.["created_at"];
+  if (lastAt && Date.now() - new Date(String(lastAt)).getTime() < 45_000) {
+    throw new Error("A code was just sent. Please wait a moment before requesting another.");
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  await supabaseAdmin.from("admin_otps").update({ used: true }).eq("tg_id", tgId).eq("used", false);
+  const ins = await supabaseAdmin.from("admin_otps").insert({
+    code,
+    tg_id: tgId,
+    expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+  });
+  if (ins.error) throw new Error(ins.error.message);
+
+  await sendTelegramMessage(
+    tgId,
+    `🔐 <b>Ads Rewards admin login</b>\n\nYour code: <code>${code}</code>\nValid for 5 minutes.\n\nIf you didn't request this, ignore it.`,
+  );
+  return { ok: true };
+}
+
+/** Step 2: exchange a valid code for a short-lived admin session token. */
+export async function adminVerifyOtp(initData: string, code: string) {
+  const tgId = await requireAdminTg(initData);
+  const clean = code.replace(/\D/g, "");
+
+  const { data } = await supabaseAdmin
+    .from("admin_otps")
+    .select("*")
+    .eq("tg_id", tgId)
+    .eq("used", false)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const row = data?.[0] as Record<string, unknown> | undefined;
+  if (!row) throw new Error("Request a new code.");
+  if (new Date(String(row["expires_at"])).getTime() < Date.now()) {
+    throw new Error("This code expired. Request a new one.");
+  }
+  if (num(row["attempts"]) >= 5) throw new Error("Too many attempts. Request a new code.");
+  if (String(row["code"]) !== clean) {
+    await supabaseAdmin
+      .from("admin_otps")
+      .update({ attempts: num(row["attempts"]) + 1 })
+      .eq("id", String(row["id"]));
+    throw new Error("Incorrect code.");
+  }
+
+  await supabaseAdmin.from("admin_otps").update({ used: true }).eq("id", String(row["id"]));
+  const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  const ins = await supabaseAdmin
+    .from("admin_sessions")
+    .insert({ token, tg_id: tgId, expires_at: expiresAt });
+  if (ins.error) throw new Error(ins.error.message);
+  return { token, expiresAt };
+}
+
+async function requireAdmin(initData: string, adminToken: string) {
+  const tgId = await requireAdminTg(initData);
+  if (!adminToken) throw new Error("Admin verification required.");
+  const { data } = await supabaseAdmin
+    .from("admin_sessions")
+    .select("*")
+    .eq("token", adminToken)
+    .maybeSingle();
+  const row = data as Record<string, unknown> | null;
+  if (!row || num(row["tg_id"]) !== tgId) throw new Error("Admin verification required.");
+  if (new Date(String(row["expires_at"])).getTime() < Date.now()) {
+    await supabaseAdmin.from("admin_sessions").delete().eq("token", adminToken);
+    throw new Error("Admin session expired. Verify again.");
+  }
+}
+
+export async function adminOverview(initData: string, adminToken: string) {
+  await requireAdmin(initData, adminToken);
   const players = await supabaseAdmin.from("players").select("balance,total_earned,tasks_completed,ads_watched_total");
   const rows = (players.data ?? []).map((p) => p as unknown as Record<string, unknown>);
   const pendingWithdrawals = await supabaseAdmin
@@ -540,16 +630,16 @@ export async function adminOverview(initData: string) {
   };
 }
 
-export async function adminUsers(initData: string, search: string) {
-  await requireAdmin(initData);
+export async function adminUsers(initData: string, adminToken: string, search: string) {
+  await requireAdmin(initData, adminToken);
   let q = supabaseAdmin.from("players").select("*").order("total_earned", { ascending: false }).limit(100);
   if (search.trim()) q = q.ilike("username", `%${search.trim()}%`);
   const { data } = await q;
   return (data ?? []).map((p) => mapPlayer(p as unknown as Record<string, unknown>));
 }
 
-export async function adminUserTransactions(initData: string, playerId: string): Promise<TxRow[]> {
-  await requireAdmin(initData);
+export async function adminUserTransactions(initData: string, adminToken: string, playerId: string): Promise<TxRow[]> {
+  await requireAdmin(initData, adminToken);
   const { data } = await supabaseAdmin
     .from("transactions")
     .select("*")
@@ -559,8 +649,8 @@ export async function adminUserTransactions(initData: string, playerId: string):
   return (data ?? []).map((t) => mapTx(t as unknown as Record<string, unknown>));
 }
 
-export async function adminWithdrawals(initData: string, status: string): Promise<WithdrawalRow[]> {
-  await requireAdmin(initData);
+export async function adminWithdrawals(initData: string, adminToken: string, status: string): Promise<WithdrawalRow[]> {
+  await requireAdmin(initData, adminToken);
   const { data } = await supabaseAdmin
     .from("withdrawals")
     .select("*, players(tg_id,username,first_name)")
@@ -572,9 +662,10 @@ export async function adminWithdrawals(initData: string, status: string): Promis
 
 export async function adminResolveWithdrawal(
   initData: string,
+  adminToken: string,
   input: { id: string; action: "paid" | "rejected"; reason?: string | undefined },
 ) {
-  await requireAdmin(initData);
+  await requireAdmin(initData, adminToken);
   const { data, error } = await supabaseAdmin.from("withdrawals").select("*").eq("id", input.id).single();
   if (error) throw new Error("Withdrawal not found.");
   const w = data as unknown as Record<string, unknown>;
@@ -606,14 +697,15 @@ export async function adminResolveWithdrawal(
   return { ok: true };
 }
 
-export async function adminTasks(initData: string): Promise<AdminTaskRow[]> {
-  await requireAdmin(initData);
+export async function adminTasks(initData: string, adminToken: string): Promise<AdminTaskRow[]> {
+  await requireAdmin(initData, adminToken);
   const { data } = await supabaseAdmin.from("tasks").select("*").order("created_at", { ascending: false });
   return (data ?? []).map((t) => mapAdminTask(t as unknown as Record<string, unknown>));
 }
 
 export async function adminCreateTask(
   initData: string,
+  adminToken: string,
   input: {
     title: string;
     description?: string | undefined;
@@ -625,7 +717,7 @@ export async function adminCreateTask(
     is_live: boolean;
   },
 ) {
-  await requireAdmin(initData);
+  await requireAdmin(initData, adminToken);
   const { error } = await supabaseAdmin.from("tasks").insert({
     title: input.title,
     description: input.description ?? null,
@@ -642,9 +734,10 @@ export async function adminCreateTask(
 
 export async function adminUpdateTask(
   initData: string,
+  adminToken: string,
   input: { id: string; is_live?: boolean | undefined; remove?: boolean | undefined },
 ) {
-  await requireAdmin(initData);
+  await requireAdmin(initData, adminToken);
   if (input.remove) {
     await supabaseAdmin.from("tasks").delete().eq("id", input.id);
     return { ok: true };

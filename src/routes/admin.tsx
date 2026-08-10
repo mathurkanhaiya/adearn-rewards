@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { GlassCard, Stat } from "@/components/miniapp/GlassCard";
@@ -18,8 +18,11 @@ import {
   fnAdminCreateTask,
   fnAdminUpdateTask,
   fnAdminUserTransactions,
+  fnAdminRequestOtp,
+  fnAdminVerifyOtp,
 } from "@/lib/api.functions";
 import { getInitData } from "@/lib/telegram-client";
+import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/admin-token";
 import { LoadingScreen, OpenInTelegram } from "@/components/miniapp/Splash";
 import { useAppState, useTelegramEnv } from "@/lib/useAppState";
 import { usd } from "@/lib/format";
@@ -51,6 +54,7 @@ type Section = (typeof SECTIONS)[number];
 
 function AdminPage() {
   const [section, setSection] = useState<Section>("Overview");
+  const [verified, setVerified] = useState(() => !!getAdminToken());
   const env = useTelegramEnv();
   const state = useAppState(env === "telegram");
 
@@ -65,16 +69,28 @@ function AdminPage() {
     return <Centered>Admin access only.</Centered>;
   }
 
+  if (!verified) return <OtpGate onVerified={() => setVerified(true)} />;
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-10 pt-6">
       <header className="mb-4 flex items-center gap-3">
         <Link to="/" className="glass flex h-9 w-9 items-center justify-center rounded-full">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-lg font-bold">
+        <h1 className="flex-1 text-lg font-bold">
           Admin <span className="text-gradient">Panel</span>
         </h1>
+        <button
+          onClick={() => {
+            clearAdminToken();
+            setVerified(false);
+          }}
+          className="glass-soft rounded-full px-3 py-1.5 text-[11px] text-muted-foreground"
+        >
+          Lock
+        </button>
       </header>
+
 
       <div className="glass-soft mb-4 grid grid-cols-4 gap-1 rounded-2xl p-1">
         {SECTIONS.map((s) => (
@@ -109,10 +125,99 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
+function OtpGate({ onVerified }: { onVerified: () => void }) {
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const request = async () => {
+    setBusy(true);
+    try {
+      await fnAdminRequestOtp({ data: { initData: getInitData() } });
+      setSent(true);
+      toast.success("Code sent to your Telegram chat");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send the code");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    setBusy(true);
+    try {
+      const res = await fnAdminVerifyOtp({ data: { initData: getInitData(), code } });
+      setAdminToken(res.token, res.expiresAt);
+      onVerified();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-6">
+      <div className="glass w-full max-w-sm rounded-[2rem] px-8 py-10 text-center">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary">
+          <Lock className="h-6 w-6 text-primary-foreground" />
+        </div>
+        <h1 className="text-lg font-bold">
+          Admin <span className="text-gradient">Verification</span>
+        </h1>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {sent
+            ? "Enter the 6-digit code we sent to your Telegram chat."
+            : "We'll send a one-time code to your Telegram account before opening the panel."}
+        </p>
+
+        {sent ? (
+          <div className="mt-6 space-y-3">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              placeholder="••••••"
+              className="rounded-2xl glass-soft border-white/10 text-center text-lg tracking-[0.4em]"
+            />
+            <Button
+              disabled={busy || code.length !== 6}
+              onClick={verify}
+              className="w-full rounded-2xl gradient-primary text-primary-foreground"
+            >
+              Unlock panel
+            </Button>
+            <button
+              onClick={request}
+              disabled={busy}
+              className="text-[11px] text-muted-foreground underline"
+            >
+              Resend code
+            </button>
+          </div>
+        ) : (
+          <Button
+            disabled={busy}
+            onClick={request}
+            className="mt-6 w-full rounded-2xl gradient-primary text-primary-foreground"
+          >
+            Send code on Telegram
+          </Button>
+        )}
+
+        <Link to="/" className="mt-4 block text-[11px] text-muted-foreground">
+          Back to app
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+
 function Overview() {
   const q = useQuery({
     queryKey: ["admin", "overview"],
-    queryFn: () => fnAdminOverview({ data: { initData: getInitData() } }),
+    queryFn: () => fnAdminOverview({ data: { initData: getInitData(), adminToken: getAdminToken() } }),
   });
   const d = q.data;
   return (
@@ -132,12 +237,12 @@ function Users() {
   const [open, setOpen] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ["admin", "users", search],
-    queryFn: () => fnAdminUsers({ data: { initData: getInitData(), search } }),
+    queryFn: () => fnAdminUsers({ data: { initData: getInitData(), adminToken: getAdminToken(), search } }),
   });
   const txs = useQuery({
     queryKey: ["admin", "txs", open],
     enabled: !!open,
-    queryFn: () => fnAdminUserTransactions({ data: { initData: getInitData(), playerId: open! } }),
+    queryFn: () => fnAdminUserTransactions({ data: { initData: getInitData(), adminToken: getAdminToken(), playerId: open! } }),
   });
 
   return (
@@ -207,13 +312,13 @@ function Withdrawals() {
   const [reason, setReason] = useState<Record<string, string>>({});
   const q = useQuery({
     queryKey: ["admin", "withdrawals", status],
-    queryFn: () => fnAdminWithdrawals({ data: { initData: getInitData(), status } }),
+    queryFn: () => fnAdminWithdrawals({ data: { initData: getInitData(), adminToken: getAdminToken(), status } }),
   });
 
   const resolve = async (id: string, action: "paid" | "rejected") => {
     try {
       await fnAdminResolveWithdrawal({
-        data: { initData: getInitData(), id, action, reason: reason[id] },
+        data: { initData: getInitData(), adminToken: getAdminToken(), id, action, reason: reason[id] },
       });
       toast.success(action === "paid" ? "Marked as paid" : "Rejected & refunded");
       await q.refetch();
@@ -316,7 +421,7 @@ const TASK_TYPES = [
 function Tasks() {
   const q = useQuery({
     queryKey: ["admin", "tasks"],
-    queryFn: () => fnAdminTasks({ data: { initData: getInitData() } }),
+    queryFn: () => fnAdminTasks({ data: { initData: getInitData(), adminToken: getAdminToken() } }),
   });
   const [form, setForm] = useState({
     title: "",
@@ -333,7 +438,7 @@ function Tasks() {
     try {
       await fnAdminCreateTask({
         data: {
-          initData: getInitData(),
+          initData: getInitData(), adminToken: getAdminToken(),
           title: form.title,
           description: form.description,
           task_type: form.task_type,
@@ -353,7 +458,7 @@ function Tasks() {
   };
 
   const update = async (id: string, patch: { is_live?: boolean; remove?: boolean }) => {
-    await fnAdminUpdateTask({ data: { initData: getInitData(), id, ...patch } });
+    await fnAdminUpdateTask({ data: { initData: getInitData(), adminToken: getAdminToken(), id, ...patch } });
     await q.refetch();
   };
 

@@ -110,3 +110,28 @@ export async function verifyInitData(initData: string): Promise<TgSession> {
 export function isAdmin(tgId: number): boolean {
   return Number(tgId) === ADMIN_TG_ID;
 }
+
+/** Bot token, server-only. Used just to DM the admin their login code. */
+function botToken(): string {
+  const env = process.env as Record<string, string | undefined>;
+  const t = env["TELEGRAM_BOT_TOKEN"] || env["BOT_TOKEN"];
+  if (!t) {
+    throw new Error(
+      "Server is missing TELEGRAM_BOT_TOKEN. Add it to your hosting environment variables to receive admin login codes.",
+    );
+  }
+  return t.trim();
+}
+
+/** Send a Telegram DM to a chat id via the Bot API. */
+export async function sendTelegramMessage(chatId: number, text: string) {
+  const res = await fetch(`https://api.telegram.org/bot${botToken()}/sendMessage`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+  });
+  const body = (await res.json()) as { ok?: boolean; description?: string };
+  if (!res.ok || !body.ok) {
+    throw new Error(`Could not send the code on Telegram: ${body.description ?? res.status}`);
+  }
+}

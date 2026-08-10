@@ -40,26 +40,44 @@ export const fnTransactions = createServerFn({ method: "POST" })
   .inputValidator((d: { initData: string }) => d)
   .handler(async ({ data }) => api.transactions(data.initData));
 
-export const fnAdminOverview = createServerFn({ method: "POST" })
+export const fnAdminRequestOtp = createServerFn({ method: "POST" })
   .inputValidator((d: { initData: string }) => d)
-  .handler(async ({ data }) => api.adminOverview(data.initData));
+  .handler(async ({ data }) => api.adminRequestOtp(data.initData));
+
+export const fnAdminVerifyOtp = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; code: string }) => d)
+  .handler(async ({ data }) => api.adminVerifyOtp(data.initData, data.code));
+
+export const fnAdminOverview = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; adminToken: string }) => d)
+  .handler(async ({ data }) => api.adminOverview(data.initData, data.adminToken));
 
 export const fnAdminUsers = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; search: string }) => d)
-  .handler(async ({ data }) => api.adminUsers(data.initData, data.search));
+  .inputValidator((d: { initData: string; adminToken: string; search: string }) => d)
+  .handler(async ({ data }) => api.adminUsers(data.initData, data.adminToken, data.search));
 
 export const fnAdminUserTransactions = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; playerId: string }) => d)
-  .handler(async ({ data }) => api.adminUserTransactions(data.initData, data.playerId));
+  .inputValidator((d: { initData: string; adminToken: string; playerId: string }) => d)
+  .handler(async ({ data }) =>
+    api.adminUserTransactions(data.initData, data.adminToken, data.playerId),
+  );
 
 export const fnAdminWithdrawals = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; status: string }) => d)
-  .handler(async ({ data }) => api.adminWithdrawals(data.initData, data.status));
+  .inputValidator((d: { initData: string; adminToken: string; status: string }) => d)
+  .handler(async ({ data }) => api.adminWithdrawals(data.initData, data.adminToken, data.status));
 
 export const fnAdminResolveWithdrawal = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; id: string; action: "paid" | "rejected"; reason?: string | undefined }) => d)
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      id: string;
+      action: "paid" | "rejected";
+      reason?: string | undefined;
+    }) => d,
+  )
   .handler(async ({ data }) =>
-    api.adminResolveWithdrawal(data.initData, {
+    api.adminResolveWithdrawal(data.initData, data.adminToken, {
       id: data.id,
       action: data.action,
       reason: data.reason,
@@ -67,13 +85,14 @@ export const fnAdminResolveWithdrawal = createServerFn({ method: "POST" })
   );
 
 export const fnAdminTasks = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string }) => d)
-  .handler(async ({ data }) => api.adminTasks(data.initData));
+  .inputValidator((d: { initData: string; adminToken: string }) => d)
+  .handler(async ({ data }) => api.adminTasks(data.initData, data.adminToken));
 
 export const fnAdminCreateTask = createServerFn({ method: "POST" })
   .inputValidator(
     (d: {
       initData: string;
+      adminToken: string;
       title: string;
       description?: string | undefined;
       task_type: string;
@@ -84,8 +103,16 @@ export const fnAdminCreateTask = createServerFn({ method: "POST" })
       is_live: boolean;
     }) => d,
   )
-  .handler(async ({ data }) => api.adminCreateTask(data.initData, data));
+  .handler(async ({ data }) => api.adminCreateTask(data.initData, data.adminToken, data));
 
 export const fnAdminUpdateTask = createServerFn({ method: "POST" })
-  .inputValidator((d: { initData: string; id: string; is_live?: boolean | undefined; remove?: boolean | undefined }) => d)
-  .handler(async ({ data }) => api.adminUpdateTask(data.initData, data));
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      id: string;
+      is_live?: boolean | undefined;
+      remove?: boolean | undefined;
+    }) => d,
+  )
+  .handler(async ({ data }) => api.adminUpdateTask(data.initData, data.adminToken, data));
