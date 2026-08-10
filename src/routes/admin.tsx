@@ -20,6 +20,7 @@ import {
   fnAdminUserTransactions,
 } from "@/lib/api.functions";
 import { getInitData } from "@/lib/telegram-client";
+import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/admin-token";
 import { LoadingScreen, OpenInTelegram } from "@/components/miniapp/Splash";
 import { useAppState, useTelegramEnv } from "@/lib/useAppState";
 import { usd } from "@/lib/format";
@@ -112,7 +113,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 function Overview() {
   const q = useQuery({
     queryKey: ["admin", "overview"],
-    queryFn: () => fnAdminOverview({ data: { initData: getInitData() } }),
+    queryFn: () => fnAdminOverview({ data: { initData: getInitData(), adminToken: getAdminToken() } }),
   });
   const d = q.data;
   return (
@@ -132,12 +133,12 @@ function Users() {
   const [open, setOpen] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ["admin", "users", search],
-    queryFn: () => fnAdminUsers({ data: { initData: getInitData(), search } }),
+    queryFn: () => fnAdminUsers({ data: { initData: getInitData(), adminToken: getAdminToken(), search } }),
   });
   const txs = useQuery({
     queryKey: ["admin", "txs", open],
     enabled: !!open,
-    queryFn: () => fnAdminUserTransactions({ data: { initData: getInitData(), playerId: open! } }),
+    queryFn: () => fnAdminUserTransactions({ data: { initData: getInitData(), adminToken: getAdminToken(), playerId: open! } }),
   });
 
   return (
@@ -207,13 +208,13 @@ function Withdrawals() {
   const [reason, setReason] = useState<Record<string, string>>({});
   const q = useQuery({
     queryKey: ["admin", "withdrawals", status],
-    queryFn: () => fnAdminWithdrawals({ data: { initData: getInitData(), status } }),
+    queryFn: () => fnAdminWithdrawals({ data: { initData: getInitData(), adminToken: getAdminToken(), status } }),
   });
 
   const resolve = async (id: string, action: "paid" | "rejected") => {
     try {
       await fnAdminResolveWithdrawal({
-        data: { initData: getInitData(), id, action, reason: reason[id] },
+        data: { initData: getInitData(), adminToken: getAdminToken(), id, action, reason: reason[id] },
       });
       toast.success(action === "paid" ? "Marked as paid" : "Rejected & refunded");
       await q.refetch();
@@ -316,7 +317,7 @@ const TASK_TYPES = [
 function Tasks() {
   const q = useQuery({
     queryKey: ["admin", "tasks"],
-    queryFn: () => fnAdminTasks({ data: { initData: getInitData() } }),
+    queryFn: () => fnAdminTasks({ data: { initData: getInitData(), adminToken: getAdminToken() } }),
   });
   const [form, setForm] = useState({
     title: "",
@@ -333,7 +334,7 @@ function Tasks() {
     try {
       await fnAdminCreateTask({
         data: {
-          initData: getInitData(),
+          initData: getInitData(), adminToken: getAdminToken(),
           title: form.title,
           description: form.description,
           task_type: form.task_type,
@@ -353,7 +354,7 @@ function Tasks() {
   };
 
   const update = async (id: string, patch: { is_live?: boolean; remove?: boolean }) => {
-    await fnAdminUpdateTask({ data: { initData: getInitData(), id, ...patch } });
+    await fnAdminUpdateTask({ data: { initData: getInitData(), adminToken: getAdminToken(), id, ...patch } });
     await q.refetch();
   };
 
