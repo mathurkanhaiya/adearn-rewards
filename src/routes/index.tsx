@@ -8,6 +8,7 @@ import { ReferTab } from "@/components/miniapp/ReferTab";
 import { LeaderboardTab } from "@/components/miniapp/LeaderboardTab";
 import { ProfileTab } from "@/components/miniapp/ProfileTab";
 import { LoadingScreen, OpenInTelegram } from "@/components/miniapp/Splash";
+import { GuestApp } from "@/components/miniapp/GuestApp";
 import { useAppState, useRefreshState, useTelegramEnv } from "@/lib/useAppState";
 
 import { showAd, AD_BLOCK_OPEN } from "@/lib/telegram-client";
