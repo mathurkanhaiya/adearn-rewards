@@ -525,8 +525,8 @@ async function requireAdmin(initData: string) {
   if (!admin || tgId !== ADMIN_TG_ID) throw new Error("Admin access only.");
 }
 
-export async function adminOverview(initData: string) {
-  await requireAdmin(initData);
+export async function adminOverview(initData: string, adminToken: string) {
+  await requireAdmin(initData, adminToken);
   const players = await supabaseAdmin.from("players").select("balance,total_earned,tasks_completed,ads_watched_total");
   const rows = (players.data ?? []).map((p) => p as unknown as Record<string, unknown>);
   const pendingWithdrawals = await supabaseAdmin
@@ -543,16 +543,16 @@ export async function adminOverview(initData: string) {
   };
 }
 
-export async function adminUsers(initData: string, search: string) {
-  await requireAdmin(initData);
+export async function adminUsers(initData: string, adminToken: string, search: string) {
+  await requireAdmin(initData, adminToken);
   let q = supabaseAdmin.from("players").select("*").order("total_earned", { ascending: false }).limit(100);
   if (search.trim()) q = q.ilike("username", `%${search.trim()}%`);
   const { data } = await q;
   return (data ?? []).map((p) => mapPlayer(p as unknown as Record<string, unknown>));
 }
 
-export async function adminUserTransactions(initData: string, playerId: string): Promise<TxRow[]> {
-  await requireAdmin(initData);
+export async function adminUserTransactions(initData: string, adminToken: string, playerId: string): Promise<TxRow[]> {
+  await requireAdmin(initData, adminToken);
   const { data } = await supabaseAdmin
     .from("transactions")
     .select("*")
@@ -562,8 +562,8 @@ export async function adminUserTransactions(initData: string, playerId: string):
   return (data ?? []).map((t) => mapTx(t as unknown as Record<string, unknown>));
 }
 
-export async function adminWithdrawals(initData: string, status: string): Promise<WithdrawalRow[]> {
-  await requireAdmin(initData);
+export async function adminWithdrawals(initData: string, adminToken: string, status: string): Promise<WithdrawalRow[]> {
+  await requireAdmin(initData, adminToken);
   const { data } = await supabaseAdmin
     .from("withdrawals")
     .select("*, players(tg_id,username,first_name)")
@@ -577,7 +577,7 @@ export async function adminResolveWithdrawal(
   initData: string,
   input: { id: string; action: "paid" | "rejected"; reason?: string | undefined },
 ) {
-  await requireAdmin(initData);
+  await requireAdmin(initData, adminToken);
   const { data, error } = await supabaseAdmin.from("withdrawals").select("*").eq("id", input.id).single();
   if (error) throw new Error("Withdrawal not found.");
   const w = data as unknown as Record<string, unknown>;
@@ -609,8 +609,8 @@ export async function adminResolveWithdrawal(
   return { ok: true };
 }
 
-export async function adminTasks(initData: string): Promise<AdminTaskRow[]> {
-  await requireAdmin(initData);
+export async function adminTasks(initData: string, adminToken: string): Promise<AdminTaskRow[]> {
+  await requireAdmin(initData, adminToken);
   const { data } = await supabaseAdmin.from("tasks").select("*").order("created_at", { ascending: false });
   return (data ?? []).map((t) => mapAdminTask(t as unknown as Record<string, unknown>));
 }
@@ -628,7 +628,7 @@ export async function adminCreateTask(
     is_live: boolean;
   },
 ) {
-  await requireAdmin(initData);
+  await requireAdmin(initData, adminToken);
   const { error } = await supabaseAdmin.from("tasks").insert({
     title: input.title,
     description: input.description ?? null,
@@ -647,7 +647,7 @@ export async function adminUpdateTask(
   initData: string,
   input: { id: string; is_live?: boolean | undefined; remove?: boolean | undefined },
 ) {
-  await requireAdmin(initData);
+  await requireAdmin(initData, adminToken);
   if (input.remove) {
     await supabaseAdmin.from("tasks").delete().eq("id", input.id);
     return { ok: true };
