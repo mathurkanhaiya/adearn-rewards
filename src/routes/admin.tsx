@@ -52,6 +52,7 @@ type Section = (typeof SECTIONS)[number];
 
 function AdminPage() {
   const [section, setSection] = useState<Section>("Overview");
+  const [verified, setVerified] = useState(() => !!getAdminToken());
   const env = useTelegramEnv();
   const state = useAppState(env === "telegram");
 
@@ -66,16 +67,28 @@ function AdminPage() {
     return <Centered>Admin access only.</Centered>;
   }
 
+  if (!verified) return <OtpGate onVerified={() => setVerified(true)} />;
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-10 pt-6">
       <header className="mb-4 flex items-center gap-3">
         <Link to="/" className="glass flex h-9 w-9 items-center justify-center rounded-full">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-lg font-bold">
+        <h1 className="flex-1 text-lg font-bold">
           Admin <span className="text-gradient">Panel</span>
         </h1>
+        <button
+          onClick={() => {
+            clearAdminToken();
+            setVerified(false);
+          }}
+          className="glass-soft rounded-full px-3 py-1.5 text-[11px] text-muted-foreground"
+        >
+          Lock
+        </button>
       </header>
+
 
       <div className="glass-soft mb-4 grid grid-cols-4 gap-1 rounded-2xl p-1">
         {SECTIONS.map((s) => (
