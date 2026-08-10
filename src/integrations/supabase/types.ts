@@ -43,6 +43,57 @@ export type Database = {
           },
         ]
       }
+      admin_otps: {
+        Row: {
+          attempts: number
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          tg_id: number
+          used: boolean
+        }
+        Insert: {
+          attempts?: number
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          tg_id: number
+          used?: boolean
+        }
+        Update: {
+          attempts?: number
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          tg_id?: number
+          used?: boolean
+        }
+        Relationships: []
+      }
+      admin_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          tg_id: number
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          tg_id: number
+          token: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          tg_id?: number
+          token?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           ad_reward_max: number
