@@ -455,7 +455,6 @@ export async function withdrawalHistory(initData: string): Promise<WithdrawalRow
 
 export async function requestWithdrawal(
   initData: string,
-  adminToken: string,
   input: { amount: number; method: string; address: string },
 ) {
   const { player } = await resolvePlayer(initData);
