@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { GlassCard, Stat } from "@/components/miniapp/GlassCard";
@@ -18,6 +18,8 @@ import {
   fnAdminCreateTask,
   fnAdminUpdateTask,
   fnAdminUserTransactions,
+  fnAdminRequestOtp,
+  fnAdminVerifyOtp,
 } from "@/lib/api.functions";
 import { getInitData } from "@/lib/telegram-client";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/admin-token";
