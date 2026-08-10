@@ -520,9 +520,96 @@ export async function transactions(initData: string): Promise<TxRow[]> {
 
 /* ------------------------------- admin ------------------------------- */
 
-async function requireAdmin(initData: string) {
+const OTP_TTL_MS = 5 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 60 * 1000;
+
+async function requireAdminTg(initData: string) {
   const { admin, tgId } = await resolvePlayer(initData);
   if (!admin || tgId !== ADMIN_TG_ID) throw new Error("Admin access only.");
+  return tgId;
+}
+
+/** Step 1: DM a fresh 6-digit code to the admin's Telegram account. */
+export async function adminRequestOtp(initData: string) {
+  const tgId = await requireAdminTg(initData);
+
+  const recent = await supabaseAdmin
+    .from("admin_otps")
+    .select("created_at")
+    .eq("tg_id", tgId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const lastAt = (recent.data?.[0] as Record<string, unknown> | undefined)?.["created_at"];
+  if (lastAt && Date.now() - new Date(String(lastAt)).getTime() < 45_000) {
+    throw new Error("A code was just sent. Please wait a moment before requesting another.");
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  await supabaseAdmin.from("admin_otps").update({ used: true }).eq("tg_id", tgId).eq("used", false);
+  const ins = await supabaseAdmin.from("admin_otps").insert({
+    code,
+    tg_id: tgId,
+    expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+  });
+  if (ins.error) throw new Error(ins.error.message);
+
+  await sendTelegramMessage(
+    tgId,
+    `🔐 <b>Ads Rewards admin login</b>\n\nYour code: <code>${code}</code>\nValid for 5 minutes.\n\nIf you didn't request this, ignore it.`,
+  );
+  return { ok: true };
+}
+
+/** Step 2: exchange a valid code for a short-lived admin session token. */
+export async function adminVerifyOtp(initData: string, code: string) {
+  const tgId = await requireAdminTg(initData);
+  const clean = code.replace(/\D/g, "");
+
+  const { data } = await supabaseAdmin
+    .from("admin_otps")
+    .select("*")
+    .eq("tg_id", tgId)
+    .eq("used", false)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const row = data?.[0] as Record<string, unknown> | undefined;
+  if (!row) throw new Error("Request a new code.");
+  if (new Date(String(row["expires_at"])).getTime() < Date.now()) {
+    throw new Error("This code expired. Request a new one.");
+  }
+  if (num(row["attempts"]) >= 5) throw new Error("Too many attempts. Request a new code.");
+  if (String(row["code"]) !== clean) {
+    await supabaseAdmin
+      .from("admin_otps")
+      .update({ attempts: num(row["attempts"]) + 1 })
+      .eq("id", String(row["id"]));
+    throw new Error("Incorrect code.");
+  }
+
+  await supabaseAdmin.from("admin_otps").update({ used: true }).eq("id", String(row["id"]));
+  const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  const ins = await supabaseAdmin
+    .from("admin_sessions")
+    .insert({ token, tg_id: tgId, expires_at: expiresAt });
+  if (ins.error) throw new Error(ins.error.message);
+  return { token, expiresAt };
+}
+
+async function requireAdmin(initData: string, adminToken: string) {
+  const tgId = await requireAdminTg(initData);
+  if (!adminToken) throw new Error("Admin verification required.");
+  const { data } = await supabaseAdmin
+    .from("admin_sessions")
+    .select("*")
+    .eq("token", adminToken)
+    .maybeSingle();
+  const row = data as Record<string, unknown> | null;
+  if (!row || num(row["tg_id"]) !== tgId) throw new Error("Admin verification required.");
+  if (new Date(String(row["expires_at"])).getTime() < Date.now()) {
+    await supabaseAdmin.from("admin_sessions").delete().eq("token", adminToken);
+    throw new Error("Admin session expired. Verify again.");
+  }
 }
 
 export async function adminOverview(initData: string, adminToken: string) {
