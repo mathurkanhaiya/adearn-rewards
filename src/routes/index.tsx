@@ -57,7 +57,7 @@ function MiniApp() {
   }, [env]);
 
   if (env === "checking") return <LoadingScreen message="Connecting to Telegram…" />;
-  if (env === "browser") return <OpenInTelegram />;
+  if (env === "browser") return <GuestApp />;
   if (state.isError)
     return (
       <OpenInTelegram
