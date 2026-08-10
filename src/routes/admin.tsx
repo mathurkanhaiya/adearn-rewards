@@ -123,6 +123,95 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
+function OtpGate({ onVerified }: { onVerified: () => void }) {
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const request = async () => {
+    setBusy(true);
+    try {
+      await fnAdminRequestOtp({ data: { initData: getInitData() } });
+      setSent(true);
+      toast.success("Code sent to your Telegram chat");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send the code");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    setBusy(true);
+    try {
+      const res = await fnAdminVerifyOtp({ data: { initData: getInitData(), code } });
+      setAdminToken(res.token, res.expiresAt);
+      onVerified();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-6">
+      <div className="glass w-full max-w-sm rounded-[2rem] px-8 py-10 text-center">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary">
+          <Lock className="h-6 w-6 text-primary-foreground" />
+        </div>
+        <h1 className="text-lg font-bold">
+          Admin <span className="text-gradient">Verification</span>
+        </h1>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {sent
+            ? "Enter the 6-digit code we sent to your Telegram chat."
+            : "We'll send a one-time code to your Telegram account before opening the panel."}
+        </p>
+
+        {sent ? (
+          <div className="mt-6 space-y-3">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              placeholder="••••••"
+              className="rounded-2xl glass-soft border-white/10 text-center text-lg tracking-[0.4em]"
+            />
+            <Button
+              disabled={busy || code.length !== 6}
+              onClick={verify}
+              className="w-full rounded-2xl gradient-primary text-primary-foreground"
+            >
+              Unlock panel
+            </Button>
+            <button
+              onClick={request}
+              disabled={busy}
+              className="text-[11px] text-muted-foreground underline"
+            >
+              Resend code
+            </button>
+          </div>
+        ) : (
+          <Button
+            disabled={busy}
+            onClick={request}
+            className="mt-6 w-full rounded-2xl gradient-primary text-primary-foreground"
+          >
+            Send code on Telegram
+          </Button>
+        )}
+
+        <Link to="/" className="mt-4 block text-[11px] text-muted-foreground">
+          Back to app
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+
 function Overview() {
   const q = useQuery({
     queryKey: ["admin", "overview"],
