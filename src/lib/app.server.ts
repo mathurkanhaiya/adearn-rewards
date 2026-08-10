@@ -424,16 +424,19 @@ export async function leaderboard(initData: string, period: "weekly" | "monthly"
   if (top.length === 0) return [];
   const { data: players } = await supabaseAdmin
     .from("players")
-    .select("id,username,first_name")
+    .select("id,tg_id,username,first_name")
     .in("id", top.map(([id]) => id));
   const byId = new Map(
     (players ?? []).map((p) => [String((p as Record<string, unknown>)["id"]), p as Record<string, unknown>]),
   );
   return top.map(([id, count], i) => {
     const p = byId.get(id);
+    const isAdminRow = num(p?.["tg_id"]) === ADMIN_TG_ID;
     return {
       rank: i + 1,
-      name: (p?.["username"] as string) ?? (p?.["first_name"] as string) ?? "Player",
+      name: isAdminRow
+        ? "Guest"
+        : ((p?.["username"] as string) ?? (p?.["first_name"] as string) ?? "Player"),
       referrals: count,
     };
   });
