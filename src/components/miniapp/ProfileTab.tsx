@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { GlassCard, Stat } from "./GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fnRequestWithdrawal, fnWithdrawals, fnTransactions } from "@/lib/api.functions";
+import { fnRequestWithdrawal, fnWithdrawals, fnTransactions, fnSwapAdr } from "@/lib/api.functions";
+import { fx } from "@/lib/fx";
 import { getInitData } from "@/lib/telegram-client";
 import { usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,23 @@ export function ProfileTab({
   const [method, setMethod] = useState<"upi" | "usdt_polygon">("upi");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
+  const [swapAmount, setSwapAmount] = useState(String(settings.min_swap_adr));
+  const [swapping, setSwapping] = useState(false);
+
+  const doSwap = async () => {
+    setSwapping(true);
+    try {
+      const res = await fnSwapAdr({ data: { initData: getInitData(), amount: Number(swapAmount) } });
+      fx.win();
+      toast.success(`Swapped ${res.adr} ADR for ${usd(res.usd)}`);
+      onDone();
+    } catch (e) {
+      fx.error();
+      toast.error(e instanceof Error ? e.message : "Swap failed");
+    } finally {
+      setSwapping(false);
+    }
+  };
 
   const history = useQuery({
     queryKey: ["withdrawals"],
@@ -94,7 +112,32 @@ export function ProfileTab({
         <Stat label="Referral earnings" value={usd(player.referral_earned)} />
         <Stat label="Tasks completed" value={String(player.tasks_completed)} />
         <Stat label="Ads watched" value={String(player.ads_watched_total)} />
+        <Stat label="ADR balance" value={`${player.adr_balance} ADR`} accent />
+        <Stat label="ADR earned" value={`${player.adr_earned} ADR`} />
       </div>
+
+      <GlassCard className="space-y-3">
+        <h3 className="text-sm font-semibold">Swap ADR → $</h3>
+        <p className="text-xs text-muted-foreground">
+          Minimum {settings.min_swap_adr} ADR · rate {settings.min_swap_adr} ADR ={" "}
+          {usd(settings.min_swap_adr * settings.adr_rate, 2)}
+        </p>
+        <div className="flex gap-2">
+          <Input
+            value={swapAmount}
+            onChange={(e) => setSwapAmount(e.target.value)}
+            inputMode="numeric"
+            className="rounded-2xl glass-soft border-white/10"
+          />
+          <Button
+            disabled={swapping}
+            onClick={doSwap}
+            className="h-10 rounded-2xl gradient-primary px-4 text-xs font-semibold text-primary-foreground hover:opacity-90"
+          >
+            Swap
+          </Button>
+        </div>
+      </GlassCard>
 
       <GlassCard className="space-y-3">
         <div className="flex items-center gap-2">
