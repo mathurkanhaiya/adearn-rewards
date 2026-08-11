@@ -98,103 +98,362 @@ export type Database = {
         Row: {
           ad_reward_max: number
           ad_reward_min: number
+          adr_rate: number
           commission_rate: number
+          energy_max: number
+          energy_regen_sec: number
+          features: Json
+          free_scratch: number
+          free_spins: number
+          game_max: number
+          game_min: number
           id: number
+          login_reward: number
+          max_extra_scratch: number
+          max_extra_spins: number
+          min_swap_adr: number
           min_withdraw: number
           ref_reward_max: number
           ref_reward_min: number
           req_daily_ads: number
           req_referrals: number
           req_tasks: number
+          tap_reward: number
           withdraw_fee: number
         }
         Insert: {
           ad_reward_max?: number
           ad_reward_min?: number
+          adr_rate?: number
           commission_rate?: number
+          energy_max?: number
+          energy_regen_sec?: number
+          features?: Json
+          free_scratch?: number
+          free_spins?: number
+          game_max?: number
+          game_min?: number
           id?: number
+          login_reward?: number
+          max_extra_scratch?: number
+          max_extra_spins?: number
+          min_swap_adr?: number
           min_withdraw?: number
           ref_reward_max?: number
           ref_reward_min?: number
           req_daily_ads?: number
           req_referrals?: number
           req_tasks?: number
+          tap_reward?: number
           withdraw_fee?: number
         }
         Update: {
           ad_reward_max?: number
           ad_reward_min?: number
+          adr_rate?: number
           commission_rate?: number
+          energy_max?: number
+          energy_regen_sec?: number
+          features?: Json
+          free_scratch?: number
+          free_spins?: number
+          game_max?: number
+          game_min?: number
           id?: number
+          login_reward?: number
+          max_extra_scratch?: number
+          max_extra_spins?: number
+          min_swap_adr?: number
           min_withdraw?: number
           ref_reward_max?: number
           ref_reward_min?: number
           req_daily_ads?: number
           req_referrals?: number
           req_tasks?: number
+          tap_reward?: number
           withdraw_fee?: number
         }
         Relationships: []
       }
+      contests: {
+        Row: {
+          created_at: string
+          description: string | null
+          ends_at: string
+          id: string
+          is_active: boolean
+          metric: string
+          reward_amount: number
+          reward_type: string
+          starts_at: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          metric?: string
+          reward_amount?: number
+          reward_type?: string
+          starts_at?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          metric?: string
+          reward_amount?: number
+          reward_type?: string
+          starts_at?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      daily_logins: {
+        Row: {
+          created_at: string
+          day: string
+          id: string
+          player_id: string
+          reward: number
+          streak: number
+        }
+        Insert: {
+          created_at?: string
+          day?: string
+          id?: string
+          player_id: string
+          reward?: number
+          streak?: number
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          id?: string
+          player_id?: string
+          reward?: number
+          streak?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_logins_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_plays: {
+        Row: {
+          created_at: string
+          doubled: boolean
+          game: string
+          id: string
+          player_id: string
+          reward: number
+        }
+        Insert: {
+          created_at?: string
+          doubled?: boolean
+          game: string
+          id?: string
+          player_id: string
+          reward?: number
+        }
+        Update: {
+          created_at?: string
+          doubled?: boolean
+          game?: string
+          id?: string
+          player_id?: string
+          reward?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_plays_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
+          adr_balance: number
+          adr_earned: number
           ads_day: string
           ads_watched_today: number
           ads_watched_total: number
           balance: number
           created_at: string
+          energy: number
+          energy_at: string
           first_name: string | null
+          games_day: string
           id: string
           is_banned: boolean
+          last_login: string | null
+          login_streak: number
           photo_url: string | null
           referral_earned: number
           referrals_count: number
           referred_by: number | null
+          scratch_extra: number
+          scratch_used: number
+          spin_extra: number
+          spins_used: number
+          taps_today: number
           tasks_completed: number
           tg_id: number
           total_earned: number
           updated_at: string
+          usdt_withdrawn: number
           username: string | null
         }
         Insert: {
+          adr_balance?: number
+          adr_earned?: number
           ads_day?: string
           ads_watched_today?: number
           ads_watched_total?: number
           balance?: number
           created_at?: string
+          energy?: number
+          energy_at?: string
           first_name?: string | null
+          games_day?: string
           id?: string
           is_banned?: boolean
+          last_login?: string | null
+          login_streak?: number
           photo_url?: string | null
           referral_earned?: number
           referrals_count?: number
           referred_by?: number | null
+          scratch_extra?: number
+          scratch_used?: number
+          spin_extra?: number
+          spins_used?: number
+          taps_today?: number
           tasks_completed?: number
           tg_id: number
           total_earned?: number
           updated_at?: string
+          usdt_withdrawn?: number
           username?: string | null
         }
         Update: {
+          adr_balance?: number
+          adr_earned?: number
           ads_day?: string
           ads_watched_today?: number
           ads_watched_total?: number
           balance?: number
           created_at?: string
+          energy?: number
+          energy_at?: string
           first_name?: string | null
+          games_day?: string
           id?: string
           is_banned?: boolean
+          last_login?: string | null
+          login_streak?: number
           photo_url?: string | null
           referral_earned?: number
           referrals_count?: number
           referred_by?: number | null
+          scratch_extra?: number
+          scratch_used?: number
+          spin_extra?: number
+          spins_used?: number
+          taps_today?: number
           tasks_completed?: number
           tg_id?: number
           total_earned?: number
           updated_at?: string
+          usdt_withdrawn?: number
           username?: string | null
         }
         Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          amount: number
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          max_uses: number
+          used_count: number
+        }
+        Insert: {
+          amount?: number
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_uses?: number
+          used_count?: number
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_uses?: number
+          used_count?: number
+        }
+        Relationships: []
+      }
+      promo_redemptions: {
+        Row: {
+          created_at: string
+          id: string
+          player_id: string
+          promo_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          player_id: string
+          promo_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          player_id?: string
+          promo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       referrals: {
         Row: {

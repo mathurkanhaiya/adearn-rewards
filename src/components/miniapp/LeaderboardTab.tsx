@@ -1,80 +1,160 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy } from "lucide-react";
+import { Crown, Flame, Trophy } from "lucide-react";
 
 import { GlassCard } from "./GlassCard";
-import { fnLeaderboard } from "@/lib/api.functions";
+import { fnBoardTop, fnContests, fnLeaderboard } from "@/lib/api.functions";
 import { getInitData } from "@/lib/telegram-client";
+import { fx } from "@/lib/fx";
+import { usd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const PRIZES = ["$3", "$2", "$1"];
+const BOARDS = [
+  { id: "invites", label: "Invites" },
+  { id: "adr", label: "ADR" },
+  { id: "usdt", label: "Withdrawn" },
+] as const;
+
+type BoardId = (typeof BOARDS)[number]["id"];
 
 export function LeaderboardTab() {
-  const [period, setPeriod] = useState<"weekly" | "monthly">("monthly");
-  const board = useQuery({
+  const [board, setBoard] = useState<BoardId>("invites");
+  const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
+
+  const top = useQuery({
+    queryKey: ["board", board],
+    queryFn: () => fnBoardTop({ data: { initData: getInitData(), board } }),
+  });
+  const refs = useQuery({
     queryKey: ["leaderboard", period],
     queryFn: () => fnLeaderboard({ data: { initData: getInitData(), period } }),
   });
+  const contests = useQuery({
+    queryKey: ["contests"],
+    queryFn: () => fnContests({ data: { initData: getInitData() } }),
+  });
+
+  const rows =
+    board === "invites"
+      ? (refs.data ?? []).map((r) => ({ rank: r.rank, name: r.name, value: r.referrals }))
+      : (top.data ?? []);
+
+  const fmt = (v: number) =>
+    board === "usdt" ? usd(v, 2) : board === "adr" ? `${v} ADR` : `${v} invites`;
 
   return (
     <div className="space-y-4">
-      <GlassCard className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full gradient-gold">
-          <Trophy className="h-6 w-6 text-background" />
+      <GlassCard className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-gold" />
+          <h3 className="text-sm font-semibold">Leaderboard</h3>
         </div>
-        <h2 className="mt-3 text-lg font-semibold">Referral leaderboard</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Monthly top 3 win $3 · $2 · $1 — resets every month
-        </p>
-      </GlassCard>
 
-      <div className="glass-soft grid grid-cols-2 gap-1 rounded-2xl p-1">
-        {(["weekly", "monthly"] as const).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={cn(
-              "rounded-xl py-2 text-sm font-medium capitalize transition-colors",
-              period === p ? "gradient-primary text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
+        <div className="glass-soft grid grid-cols-3 gap-1 rounded-2xl p-1">
+          {BOARDS.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => {
+                fx.click();
+                setBoard(b.id);
+              }}
+              className={cn(
+                "rounded-xl py-2 text-[11px] font-medium transition-colors",
+                board === b.id ? "gradient-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
 
-      {board.isLoading ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
-      ) : (board.data ?? []).length === 0 ? (
-        <GlassCard className="py-10 text-center text-sm text-muted-foreground">
-          No verified referrals yet this {period === "weekly" ? "week" : "month"}. Be the first.
-        </GlassCard>
-      ) : (
-        <GlassCard className="divide-y divide-white/10 p-0">
-          {(board.data ?? []).map((row) => (
-            <div key={row.rank} className="flex items-center gap-3 px-4 py-3">
-              <span
+        {board === "invites" ? (
+          <div className="glass-soft grid grid-cols-2 gap-1 rounded-2xl p-1">
+            {(["weekly", "monthly"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  fx.click();
+                  setPeriod(p);
+                }}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold",
-                  row.rank === 1 && "gradient-gold text-background",
-                  row.rank === 2 && "bg-silver/80 text-background",
-                  row.rank === 3 && "bg-bronze/80 text-background",
-                  row.rank > 3 && "glass-soft text-muted-foreground",
+                  "rounded-xl py-1.5 text-[11px] font-medium capitalize transition-colors",
+                  period === p ? "gradient-primary text-primary-foreground" : "text-muted-foreground",
                 )}
               >
-                {row.rank}
+                {p}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {rows.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No rankings yet — be the first.</p>
+        ) : (
+          rows.map((r) => (
+            <div
+              key={`${r.rank}-${r.name}`}
+              className="flex items-center gap-3 rounded-2xl glass-soft px-3 py-2 text-xs"
+            >
+              <span
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold",
+                  r.rank <= 3 ? "gradient-primary text-primary-foreground" : "text-muted-foreground",
+                )}
+              >
+                {r.rank}
               </span>
-              <p className="flex-1 truncate text-sm font-medium">@{row.name}</p>
-              {period === "monthly" && row.rank <= 3 ? (
-                <span className="rounded-full glass-soft px-2 py-0.5 text-[10px] text-gold">
-                  {PRIZES[row.rank - 1]}
-                </span>
-              ) : null}
-              <span className="text-sm text-muted-foreground">{row.referrals}</span>
+              <span className="flex-1 truncate">{r.name}</span>
+              <span className="font-semibold">{fmt(r.value)}</span>
+            </div>
+          ))
+        )}
+      </GlassCard>
+
+      <GlassCard className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Crown className="h-4 w-4 text-gold" />
+          <h3 className="text-sm font-semibold">Monthly referral prizes</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          {[
+            ["1st", "$3"],
+            ["2nd", "$2"],
+            ["3rd", "$1"],
+          ].map(([p, v]) => (
+            <div key={p} className="rounded-2xl glass-soft py-3">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{p}</p>
+              <p className="mt-1 font-semibold text-gradient">{v}</p>
             </div>
           ))}
-        </GlassCard>
-      )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">Resets at the start of every month.</p>
+      </GlassCard>
+
+      <GlassCard className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Flame className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Active contests</h3>
+        </div>
+        {(contests.data ?? []).length === 0 ? (
+          <p className="text-xs text-muted-foreground">No contests running right now.</p>
+        ) : (
+          (contests.data ?? []).map((c) => (
+            <div key={c.id} className="rounded-2xl glass-soft p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold">{c.title}</p>
+                <span className="text-gradient font-semibold">
+                  {c.reward_type === "usd" ? usd(c.reward_amount, 2) : `${c.reward_amount} ADR`}
+                </span>
+              </div>
+              {c.description ? <p className="mt-1 text-muted-foreground">{c.description}</p> : null}
+              <p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                {c.metric} · ends {new Date(c.ends_at).toLocaleDateString()}
+              </p>
+            </div>
+          ))
+        )}
+      </GlassCard>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import * as api from "./app.server";
+import * as games from "./games.server";
 
 export const fnLoadState = createServerFn({ method: "POST" })
   .inputValidator((d: { initData: string; startParam?: string | undefined }) => d)
@@ -116,3 +117,139 @@ export const fnAdminUpdateTask = createServerFn({ method: "POST" })
     }) => d,
   )
   .handler(async ({ data }) => api.adminUpdateTask(data.initData, data.adminToken, data));
+
+/* --------------------------- games & new features -------------------------- */
+
+export const fnPlayGame = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; game: "spin" | "scratch"; doubled: boolean }) => d)
+  .handler(async ({ data }) => games.playGame(data.initData, data.game, data.doubled));
+
+export const fnExtraAttempt = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; game: "spin" | "scratch" }) => d)
+  .handler(async ({ data }) => games.grantExtraAttempt(data.initData, data.game));
+
+export const fnTap = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; taps: number }) => d)
+  .handler(async ({ data }) => games.tap(data.initData, data.taps));
+
+export const fnRefillEnergy = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string }) => d)
+  .handler(async ({ data }) => games.refillEnergy(data.initData));
+
+export const fnSwapAdr = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; amount: number }) => d)
+  .handler(async ({ data }) => games.swapAdr(data.initData, data.amount));
+
+export const fnClaimDaily = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; doubled: boolean }) => d)
+  .handler(async ({ data }) => games.claimDaily(data.initData, data.doubled));
+
+export const fnClaimPromo = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; code: string }) => d)
+  .handler(async ({ data }) => games.claimPromo(data.initData, data.code));
+
+export const fnContests = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string }) => d)
+  .handler(async ({ data }) => games.listContests(data.initData));
+
+export const fnBoardTop = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; board: "invites" | "usdt" | "adr" }) => d)
+  .handler(async ({ data }) => games.boardTop(data.initData, data.board));
+
+/* --------------------------------- admin --------------------------------- */
+
+export const fnAdminGetSettings = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; adminToken: string }) => d)
+  .handler(async ({ data }) => games.adminGetSettings(data.initData, data.adminToken));
+
+export const fnAdminUpdateSettings = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      patch: Record<string, number | boolean | Record<string, boolean>>;
+    }) => d,
+  )
+  .handler(async ({ data }) => games.adminUpdateSettings(data.initData, data.adminToken, data.patch));
+
+export const fnAdminAdjust = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      playerId: string;
+      currency: "usd" | "adr";
+      amount: number;
+      note: string;
+    }) => d,
+  )
+  .handler(async ({ data }) => games.adminAdjust(data.initData, data.adminToken, data));
+
+export const fnAdminSetBan = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; adminToken: string; playerId: string; banned: boolean }) => d)
+  .handler(async ({ data }) => games.adminSetBan(data.initData, data.adminToken, data));
+
+export const fnAdminPromos = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; adminToken: string }) => d)
+  .handler(async ({ data }) => games.adminPromos(data.initData, data.adminToken));
+
+export const fnAdminCreatePromo = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      code: string;
+      kind: string;
+      amount: number;
+      max_uses: number;
+      days: number;
+    }) => d,
+  )
+  .handler(async ({ data }) => games.adminCreatePromo(data.initData, data.adminToken, data));
+
+export const fnAdminUpdatePromo = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      id: string;
+      is_active?: boolean | undefined;
+      remove?: boolean | undefined;
+    }) => d,
+  )
+  .handler(async ({ data }) => games.adminUpdatePromo(data.initData, data.adminToken, data));
+
+export const fnAdminContests = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; adminToken: string }) => d)
+  .handler(async ({ data }) => games.adminContests(data.initData, data.adminToken));
+
+export const fnAdminCreateContest = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      title: string;
+      description?: string | undefined;
+      metric: string;
+      reward_type: string;
+      reward_amount: number;
+      days: number;
+    }) => d,
+  )
+  .handler(async ({ data }) => games.adminCreateContest(data.initData, data.adminToken, data));
+
+export const fnAdminUpdateContest = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      initData: string;
+      adminToken: string;
+      id: string;
+      is_active?: boolean | undefined;
+      remove?: boolean | undefined;
+    }) => d,
+  )
+  .handler(async ({ data }) => games.adminUpdateContest(data.initData, data.adminToken, data));
+
+export const fnAdminActivity = createServerFn({ method: "POST" })
+  .inputValidator((d: { initData: string; adminToken: string }) => d)
+  .handler(async ({ data }) => games.adminActivity(data.initData, data.adminToken));

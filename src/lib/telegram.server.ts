@@ -124,14 +124,25 @@ function botToken(): string {
 }
 
 /** Send a Telegram DM to a chat id via the Bot API. */
-export async function sendTelegramMessage(chatId: number, text: string) {
+export async function sendTelegramMessage(
+  chatId: number | string,
+  text: string,
+  replyMarkup?: { inline_keyboard: { text: string; url: string }[][] },
+) {
   const res = await fetch(`https://api.telegram.org/bot${botToken()}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }),
   });
   const body = (await res.json()) as { ok?: boolean; description?: string };
   if (!res.ok || !body.ok) {
-    throw new Error(`Could not send the code on Telegram: ${body.description ?? res.status}`);
+    throw new Error(`Telegram send failed: ${body.description ?? res.status}`);
   }
 }
+

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Gauge, ListChecks, Trophy, Users, User, Shield } from "lucide-react";
+import { Dices, Gauge, ListChecks, Trophy, Users, User, Shield } from "lucide-react";
 
 import { EarnTab } from "@/components/miniapp/EarnTab";
+import { PlayTab } from "@/components/miniapp/PlayTab";
 import { TasksTab } from "@/components/miniapp/TasksTab";
 import { ReferTab } from "@/components/miniapp/ReferTab";
 import { LeaderboardTab } from "@/components/miniapp/LeaderboardTab";
@@ -38,11 +39,13 @@ export const Route = createFileRoute("/")({
 
 const TABS = [
   { id: "earn", label: "Earn", icon: Gauge },
+  { id: "play", label: "Play", icon: Dices },
   { id: "tasks", label: "Tasks", icon: ListChecks },
   { id: "refer", label: "Refer", icon: Users },
   { id: "top", label: "Top", icon: Trophy },
   { id: "profile", label: "Profile", icon: User },
 ] as const;
+
 
 type TabId = (typeof TABS)[number]["id"];
 
@@ -68,7 +71,7 @@ function MiniApp() {
   if (state.isLoading || !state.data) return <LoadingScreen />;
 
 
-  const { player, settings, admin, pendingWithdrawal } = state.data;
+  const { player, settings, admin, pendingWithdrawal, dailyClaimed } = state.data;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-28 pt-6">
@@ -90,6 +93,9 @@ function MiniApp() {
       </header>
 
       {tab === "earn" && <EarnTab player={player} settings={settings} onDone={refresh} />}
+      {tab === "play" && (
+        <PlayTab player={player} settings={settings} dailyClaimed={dailyClaimed} onDone={refresh} />
+      )}
       {tab === "tasks" && <TasksTab onDone={refresh} />}
       {tab === "refer" && <ReferTab player={player} />}
       {tab === "top" && <LeaderboardTab />}
@@ -103,7 +109,7 @@ function MiniApp() {
       )}
 
       <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-4">
-        <div className="glass grid grid-cols-5 gap-1 rounded-3xl p-1.5">
+        <div className="glass grid grid-cols-6 gap-1 rounded-3xl p-1.5">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}

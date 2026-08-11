@@ -7,7 +7,11 @@ export type TelegramWebApp = {
   expand: () => void;
   openTelegramLink?: (url: string) => void;
   openLink?: (url: string) => void;
-  HapticFeedback?: { impactOccurred: (s: string) => void };
+  HapticFeedback?: {
+    impactOccurred: (s: string) => void;
+    notificationOccurred?: (s: string) => void;
+    selectionChanged?: () => void;
+  };
   setHeaderColor?: (c: string) => void;
 };
 
@@ -20,9 +24,12 @@ declare global {
   }
 }
 
-export const AD_BLOCK_OPEN = "int-23322";
-export const AD_BLOCK_REWARD = "23390";
+/** Interstitial block shown once when the app opens. */
+export const AD_BLOCK_OPEN = "int-25929";
+/** Rewarded block used for optional bonuses (double reward, extra tries, refill). */
+export const AD_BLOCK_REWARD = "25930";
 export const BOT_USERNAME = "Adsrewartsbot";
+
 
 export function tg(): TelegramWebApp | undefined {
   if (typeof window === "undefined") return undefined;
@@ -119,4 +126,18 @@ export async function showAd(blockId: string): Promise<void> {
     controllers.set(blockId, controller);
   }
   await controller.show();
+}
+/** Optional rewarded ad. Resolves true only when the ad was actually watched. */
+export async function showRewardedAd(): Promise<boolean> {
+  try {
+    await showAd(AD_BLOCK_REWARD);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Fire-and-forget interstitial; never blocks the UI. */
+export function showInterstitial() {
+  void showAd(AD_BLOCK_OPEN).catch(() => undefined);
 }
