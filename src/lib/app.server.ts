@@ -1,8 +1,11 @@
 import { db as supabaseAdmin } from "./db.server";
 import { verifyInitData, isAdmin, ADMIN_TG_ID, sendTelegramMessage } from "./telegram.server";
 
-const today = () => new Date().toISOString().slice(0, 10);
-const rnd = (min: number, max: number) => Math.round((min + Math.random() * (max - min)) * 100000) / 100000;
+export const today = () => new Date().toISOString().slice(0, 10);
+export const rnd = (min: number, max: number) =>
+  Math.round((min + Math.random() * (max - min)) * 100000) / 100000;
+
+export type Features = Record<string, boolean>;
 
 export type Settings = {
   ad_reward_min: number;
@@ -15,6 +18,19 @@ export type Settings = {
   req_referrals: number;
   req_tasks: number;
   req_daily_ads: number;
+  adr_rate: number;
+  min_swap_adr: number;
+  tap_reward: number;
+  energy_max: number;
+  energy_regen_sec: number;
+  game_min: number;
+  game_max: number;
+  free_spins: number;
+  free_scratch: number;
+  max_extra_spins: number;
+  max_extra_scratch: number;
+  login_reward: number;
+  features: Features;
 };
 
 export type Player = {
@@ -31,7 +47,19 @@ export type Player = {
   referrals_count: number;
   is_banned: boolean;
   created_at: string;
+  adr_balance: number;
+  adr_earned: number;
+  energy: number;
+  spins_used: number;
+  spin_extra: number;
+  scratch_used: number;
+  scratch_extra: number;
+  taps_today: number;
+  login_streak: number;
+  last_login: string | null;
+  usdt_withdrawn: number;
 };
+
 
 export type WithdrawalRow = {
   id: string;
@@ -71,9 +99,10 @@ export type AdminTaskRow = {
   created_at: string;
 };
 
-function num(v: unknown): number {
+export function num(v: unknown): number {
   return Number(v ?? 0);
 }
+
 
 function str(v: unknown): string | null {
   return v === null || v === undefined ? null : String(v);
@@ -139,8 +168,20 @@ function mapPlayer(row: Record<string, unknown>): Player {
     referrals_count: num(row["referrals_count"]),
     is_banned: Boolean(row["is_banned"]),
     created_at: String(row["created_at"]),
+    adr_balance: num(row["adr_balance"]),
+    adr_earned: num(row["adr_earned"]),
+    energy: num(row["energy"]),
+    spins_used: num(row["spins_used"]),
+    spin_extra: num(row["spin_extra"]),
+    scratch_used: num(row["scratch_used"]),
+    scratch_extra: num(row["scratch_extra"]),
+    taps_today: num(row["taps_today"]),
+    login_streak: num(row["login_streak"]),
+    last_login: str(row["last_login"]),
+    usdt_withdrawn: num(row["usdt_withdrawn"]),
   };
 }
+
 
 export async function getSettings(): Promise<Settings> {
   const { data, error } = await supabaseAdmin.from("app_settings").select("*").eq("id", 1).single();
@@ -157,8 +198,22 @@ export async function getSettings(): Promise<Settings> {
     req_referrals: num(r["req_referrals"]),
     req_tasks: num(r["req_tasks"]),
     req_daily_ads: num(r["req_daily_ads"]),
+    adr_rate: num(r["adr_rate"]),
+    min_swap_adr: num(r["min_swap_adr"]),
+    tap_reward: num(r["tap_reward"]),
+    energy_max: num(r["energy_max"]),
+    energy_regen_sec: num(r["energy_regen_sec"]) || 30,
+    game_min: num(r["game_min"]),
+    game_max: num(r["game_max"]),
+    free_spins: num(r["free_spins"]),
+    free_scratch: num(r["free_scratch"]),
+    max_extra_spins: num(r["max_extra_spins"]),
+    max_extra_scratch: num(r["max_extra_scratch"]),
+    login_reward: num(r["login_reward"]),
+    features: (r["features"] as Features) ?? {},
   };
 }
+
 
 /** Resolve (and lazily create) the player for a verified Telegram session. */
 export async function resolvePlayer(initData: string, startParam?: string | undefined) {
@@ -215,12 +270,31 @@ export async function resolvePlayer(initData: string, startParam?: string | unde
     if (!upd.error) row = upd.data as unknown as Record<string, unknown>;
   }
 
+  // Daily game counters reset (spins, scratch cards, taps)
+  if (String(row["games_day"] ?? "").slice(0, 10) !== today()) {
+    const upd = await supabaseAdmin
+      .from("players")
+      .update({
+        games_day: today(),
+        spins_used: 0,
+        spin_extra: 0,
+        scratch_used: 0,
+        scratch_extra: 0,
+        taps_today: 0,
+      })
+      .eq("id", String(row["id"]))
+      .select("*")
+      .single();
+    if (!upd.error) row = upd.data as unknown as Record<string, unknown>;
+  }
+
   const player = mapPlayer(row);
   if (player.is_banned) throw new Error("Your account has been suspended.");
   return { player, tgId, admin: isAdmin(tgId) };
 }
 
-async function credit(playerId: string, amount: number, kind: string, note: string) {
+export async function credit(playerId: string, amount: number, kind: string, note: string) {
+
   const { data } = await supabaseAdmin
     .from("players")
     .select("balance,total_earned")
@@ -291,9 +365,31 @@ async function maybeVerifyReferral(player: Player, settings: Settings) {
   await credit(referrerId, bonus, "referral", "Verified referral bonus");
 }
 
+/** Lazily regenerate tap energy based on elapsed time. */
+export async function syncEnergy(player: Player, settings: Settings): Promise<Player> {
+  const { data } = await supabaseAdmin
+    .from("players")
+    .select("energy,energy_at")
+    .eq("id", player.id)
+    .single();
+  const r = (data ?? {}) as Record<string, unknown>;
+  const at = new Date(String(r["energy_at"] ?? new Date().toISOString())).getTime();
+  const regen = Math.max(1, settings.energy_regen_sec) * 1000;
+  const gained = Math.floor((Date.now() - at) / regen);
+  if (gained <= 0) return { ...player, energy: num(r["energy"]) };
+  const energy = Math.min(settings.energy_max, num(r["energy"]) + gained);
+  await supabaseAdmin
+    .from("players")
+    .update({ energy, energy_at: new Date().toISOString() })
+    .eq("id", player.id);
+  return { ...player, energy };
+}
+
 export async function loadState(initData: string, startParam?: string | undefined) {
-  const { player, admin } = await resolvePlayer(initData, startParam);
+  const base = await resolvePlayer(initData, startParam);
+  const admin = base.admin;
   const settings = await getSettings();
+  const player = await syncEnergy(base.player, settings);
   const pending = await supabaseAdmin
     .from("withdrawals")
     .select("*")
@@ -304,11 +400,13 @@ export async function loadState(initData: string, startParam?: string | undefine
     player,
     settings,
     admin,
+    dailyClaimed: String(player.last_login ?? "").slice(0, 10) === today(),
     pendingWithdrawal: pending.data
       ? mapWithdrawal(pending.data as unknown as Record<string, unknown>)
       : null,
   };
 }
+
 
 export async function watchAd(initData: string) {
   const { player } = await resolvePlayer(initData);
@@ -596,7 +694,7 @@ export async function adminVerifyOtp(initData: string, code: string) {
   return { token, expiresAt };
 }
 
-async function requireAdmin(initData: string, adminToken: string) {
+export async function requireAdmin(initData: string, adminToken: string) {
   const tgId = await requireAdminTg(initData);
   if (!adminToken) throw new Error("Admin verification required.");
   const { data } = await supabaseAdmin
@@ -693,9 +791,23 @@ export async function adminResolveWithdrawal(
       amount: num(w["amount"]),
       note: `Withdrawal rejected: ${input.reason ?? "no reason"}`,
     });
+  } else {
+    const playerId = String(w["player_id"]);
+    const { data: p } = await supabaseAdmin
+      .from("players")
+      .select("usdt_withdrawn")
+      .eq("id", playerId)
+      .single();
+    await supabaseAdmin
+      .from("players")
+      .update({
+        usdt_withdrawn: num((p as Record<string, unknown>)?.["usdt_withdrawn"]) + num(w["net_amount"]),
+      })
+      .eq("id", playerId);
   }
   return { ok: true };
 }
+
 
 export async function adminTasks(initData: string, adminToken: string): Promise<AdminTaskRow[]> {
   await requireAdmin(initData, adminToken);
