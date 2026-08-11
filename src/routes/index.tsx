@@ -38,11 +38,13 @@ export const Route = createFileRoute("/")({
 
 const TABS = [
   { id: "earn", label: "Earn", icon: Gauge },
+  { id: "play", label: "Play", icon: Dices },
   { id: "tasks", label: "Tasks", icon: ListChecks },
   { id: "refer", label: "Refer", icon: Users },
   { id: "top", label: "Top", icon: Trophy },
   { id: "profile", label: "Profile", icon: User },
 ] as const;
+
 
 type TabId = (typeof TABS)[number]["id"];
 
