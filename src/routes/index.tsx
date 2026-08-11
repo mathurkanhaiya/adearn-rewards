@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Gauge, ListChecks, Trophy, Users, User, Shield } from "lucide-react";
+import { Dices, Gauge, ListChecks, Trophy, Users, User, Shield } from "lucide-react";
 
 import { EarnTab } from "@/components/miniapp/EarnTab";
 import { TasksTab } from "@/components/miniapp/TasksTab";
