@@ -12,6 +12,10 @@ export type Settings = {
   ad_reward_max: number;
   ref_reward_min: number;
   ref_reward_max: number;
+  ad_reward_adr_min: number;
+  ad_reward_adr_max: number;
+  ref_reward_adr_min: number;
+  ref_reward_adr_max: number;
   commission_rate: number;
   min_withdraw: number;
   withdraw_fee: number;
