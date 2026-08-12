@@ -441,7 +441,8 @@ export async function loadState(initData: string, startParam?: string | undefine
 export async function watchAd(initData: string) {
   const { player } = await resolvePlayer(initData);
   const settings = await getSettings();
-  const reward = rnd(settings.ad_reward_min, settings.ad_reward_max);
+  const reward =
+    Math.round(rnd(settings.ad_reward_adr_min, settings.ad_reward_adr_max) * 10) / 10;
 
   const last = await supabaseAdmin
     .from("ad_views")
