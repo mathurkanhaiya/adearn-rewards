@@ -96,6 +96,8 @@ export type Database = {
       }
       app_settings: {
         Row: {
+          ad_reward_adr_max: number
+          ad_reward_adr_min: number
           ad_reward_max: number
           ad_reward_min: number
           adr_rate: number
@@ -113,6 +115,8 @@ export type Database = {
           max_extra_spins: number
           min_swap_adr: number
           min_withdraw: number
+          ref_reward_adr_max: number
+          ref_reward_adr_min: number
           ref_reward_max: number
           ref_reward_min: number
           req_daily_ads: number
@@ -122,6 +126,8 @@ export type Database = {
           withdraw_fee: number
         }
         Insert: {
+          ad_reward_adr_max?: number
+          ad_reward_adr_min?: number
           ad_reward_max?: number
           ad_reward_min?: number
           adr_rate?: number
@@ -139,6 +145,8 @@ export type Database = {
           max_extra_spins?: number
           min_swap_adr?: number
           min_withdraw?: number
+          ref_reward_adr_max?: number
+          ref_reward_adr_min?: number
           ref_reward_max?: number
           ref_reward_min?: number
           req_daily_ads?: number
@@ -148,6 +156,8 @@ export type Database = {
           withdraw_fee?: number
         }
         Update: {
+          ad_reward_adr_max?: number
+          ad_reward_adr_min?: number
           ad_reward_max?: number
           ad_reward_min?: number
           adr_rate?: number
@@ -165,6 +175,8 @@ export type Database = {
           max_extra_spins?: number
           min_swap_adr?: number
           min_withdraw?: number
+          ref_reward_adr_max?: number
+          ref_reward_adr_min?: number
           ref_reward_max?: number
           ref_reward_min?: number
           req_daily_ads?: number
