@@ -7,7 +7,7 @@ import { GlassCard } from "./GlassCard";
 import { Button } from "@/components/ui/button";
 import { fnListTasks, fnCompleteTask } from "@/lib/api.functions";
 import { getInitData, openLink } from "@/lib/telegram-client";
-import { usd } from "@/lib/format";
+import { adr } from "@/lib/format";
 
 export function TasksTab({ onDone }: { onDone: () => void }) {
   const [pending, setPending] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export function TasksTab({ onDone }: { onDone: () => void }) {
     setPending(id);
     try {
       const res = await fnCompleteTask({ data: { initData: getInitData(), taskId: id } });
-      toast.success(`Task done · +${usd(res.reward)}`);
+      toast.success(`Task done · +${adr(res.reward)}`);
       await tasks.refetch();
       onDone();
     } catch (e) {
@@ -38,7 +38,7 @@ export function TasksTab({ onDone }: { onDone: () => void }) {
         </div>
         <div>
           <h2 className="text-base font-semibold">Tasks</h2>
-          <p className="text-xs text-muted-foreground">Join, subscribe and earn instantly</p>
+          <p className="text-xs text-muted-foreground">Join, subscribe and earn $ADR instantly</p>
         </div>
       </GlassCard>
 
@@ -62,7 +62,7 @@ export function TasksTab({ onDone }: { onDone: () => void }) {
                 </span>
               </div>
               <span className="shrink-0 rounded-full gradient-gold px-3 py-1 text-xs font-semibold text-background">
-                {usd(t.reward, 3)}
+                {adr(t.reward)}
               </span>
             </div>
             {t.completed ? (

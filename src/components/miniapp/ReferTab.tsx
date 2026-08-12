@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { GlassCard, Stat } from "./GlassCard";
 import { Button } from "@/components/ui/button";
 import { referralLink, openLink } from "@/lib/telegram-client";
-import { usd } from "@/lib/format";
+import { adr } from "@/lib/format";
 import type { Player } from "@/lib/app.server";
 
 export function ReferTab({ player }: { player: Player }) {
@@ -26,7 +26,7 @@ export function ReferTab({ player }: { player: Player }) {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full gradient-gold">
           <Users className="h-6 w-6 text-background" />
         </div>
-        <h2 className="mt-3 text-lg font-semibold">Invite & earn up to $0.025</h2>
+        <h2 className="mt-3 text-lg font-semibold">Invite & earn up to 250 ADR</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Plus 35% lifetime commission on everything your friends earn
         </p>
@@ -45,7 +45,7 @@ export function ReferTab({ player }: { player: Player }) {
             onClick={() =>
               openLink(
                 `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(
-                  "Join Ads Rewards and earn by watching ads!",
+                  "Join Ads Rewards — play, earn $ADR and swap to USDT!",
                 )}`,
               )
             }
@@ -57,7 +57,7 @@ export function ReferTab({ player }: { player: Player }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Verified referrals" value={String(player.referrals_count)} />
-        <Stat label="Referral earnings" value={usd(player.referral_earned)} accent />
+        <Stat label="Referral earnings" value={adr(player.referral_earned)} accent />
       </div>
 
       <GlassCard className="text-xs text-muted-foreground">
