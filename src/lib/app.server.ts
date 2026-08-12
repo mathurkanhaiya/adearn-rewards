@@ -526,7 +526,7 @@ export async function completeTask(initData: string, taskId: string) {
     .from("players")
     .update({ tasks_completed: player.tasks_completed + 1 })
     .eq("id", player.id);
-  await credit(player.id, reward, "task", `Task: ${String(task["title"])}`);
+  await creditAdr(player.id, reward, "task", `Task: ${String(task["title"])}`);
   await payCommission(player.id, reward, settings);
   return { reward };
 }
