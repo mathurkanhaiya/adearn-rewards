@@ -1,6 +1,7 @@
 import { db as supabaseAdmin } from "./db.server";
 import {
   credit,
+  creditAdr,
   getSettings,
   num,
   requireAdmin,
@@ -20,26 +21,6 @@ const rndInt = (min: number, max: number) =>
 function featureOn(settings: Settings, key: string) {
   const f: Features = settings.features ?? {};
   return f[key] !== false;
-}
-
-async function creditAdr(playerId: string, amount: number, kind: string, note: string) {
-  const { data } = await supabaseAdmin
-    .from("players")
-    .select("adr_balance,adr_earned")
-    .eq("id", playerId)
-    .single();
-  const r = (data ?? {}) as Record<string, unknown>;
-  await supabaseAdmin
-    .from("players")
-    .update({
-      adr_balance: round(num(r["adr_balance"]) + amount, 2),
-      adr_earned: round(num(r["adr_earned"]) + Math.max(0, amount), 2),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", playerId);
-  await supabaseAdmin
-    .from("transactions")
-    .insert({ player_id: playerId, kind, amount: 0, note: `${note} · ${amount} ADR` });
 }
 
 /* ------------------------------ spin & scratch ----------------------------- */
