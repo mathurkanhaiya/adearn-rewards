@@ -320,8 +320,30 @@ export async function credit(playerId: string, amount: number, kind: string, not
   await supabaseAdmin.from("transactions").insert({ player_id: playerId, kind, amount, note });
 }
 
-/** Pay the 35% lifetime commission to the referrer of a player. */
-async function payCommission(playerId: string, earned: number, settings: Settings) {
+/** Credit $ADR — the only currency users earn. USDT comes from swapping ADR. */
+export async function creditAdr(playerId: string, amount: number, kind: string, note: string) {
+  const value = Math.round(amount * 100) / 100;
+  const { data } = await supabaseAdmin
+    .from("players")
+    .select("adr_balance,adr_earned")
+    .eq("id", playerId)
+    .single();
+  const r = (data ?? {}) as Record<string, unknown>;
+  await supabaseAdmin
+    .from("players")
+    .update({
+      adr_balance: Math.round((num(r["adr_balance"]) + value) * 100) / 100,
+      adr_earned: Math.round((num(r["adr_earned"]) + Math.max(0, value)) * 100) / 100,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", playerId);
+  await supabaseAdmin
+    .from("transactions")
+    .insert({ player_id: playerId, kind, amount: 0, note: `${note} · ${value} ADR` });
+}
+
+/** Pay the 35% lifetime commission (in ADR) to the referrer of a player. */
+async function payCommission(playerId: string, earnedAdr: number, settings: Settings) {
   const { data } = await supabaseAdmin
     .from("referrals")
     .select("referrer_id")
@@ -329,7 +351,7 @@ async function payCommission(playerId: string, earned: number, settings: Setting
     .maybeSingle();
   if (!data) return;
   const referrerId = String((data as Record<string, unknown>)["referrer_id"]);
-  const commission = Math.round(earned * settings.commission_rate * 100000) / 100000;
+  const commission = Math.round(earnedAdr * settings.commission_rate * 100) / 100;
   if (commission <= 0) return;
   const { data: refRow } = await supabaseAdmin
     .from("players")
@@ -340,10 +362,10 @@ async function payCommission(playerId: string, earned: number, settings: Setting
     .from("players")
     .update({ referral_earned: num((refRow as Record<string, unknown>)?.["referral_earned"]) + commission })
     .eq("id", referrerId);
-  await credit(referrerId, commission, "commission", "35% referral commission");
+  await creditAdr(referrerId, commission, "commission", "35% referral commission");
 }
 
-/** Mark a referral verified once the invitee is active, and pay the referrer. */
+/** Mark a referral verified once the invitee is active, and pay the referrer in ADR. */
 async function maybeVerifyReferral(player: Player, settings: Settings) {
   if (player.ads_watched_total + 1 < 5) return;
   const { data } = await supabaseAdmin
@@ -354,7 +376,7 @@ async function maybeVerifyReferral(player: Player, settings: Settings) {
   if (!data) return;
   const r = data as Record<string, unknown>;
   if (r["verified"]) return;
-  const bonus = rnd(settings.ref_reward_min, settings.ref_reward_max);
+  const bonus = Math.round(rnd(settings.ref_reward_adr_min, settings.ref_reward_adr_max) * 10) / 10;
   const referrerId = String(r["referrer_id"]);
   await supabaseAdmin.from("referrals").update({ verified: true, bonus }).eq("id", String(r["id"]));
   const { data: refRow } = await supabaseAdmin
@@ -370,7 +392,7 @@ async function maybeVerifyReferral(player: Player, settings: Settings) {
       referral_earned: num(rr["referral_earned"]) + bonus,
     })
     .eq("id", referrerId);
-  await credit(referrerId, bonus, "referral", "Verified referral bonus");
+  await creditAdr(referrerId, bonus, "referral", "Verified referral bonus");
 }
 
 /** Lazily regenerate tap energy based on elapsed time. */
