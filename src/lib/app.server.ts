@@ -464,7 +464,7 @@ export async function watchAd(initData: string) {
       ads_day: today(),
     })
     .eq("id", player.id);
-  await credit(player.id, reward, "ad", "Ad reward");
+  await creditAdr(player.id, reward, "ad", "Ad reward");
   await payCommission(player.id, reward, settings);
   await maybeVerifyReferral(player, settings);
   return { reward };
